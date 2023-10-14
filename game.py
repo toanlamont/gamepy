@@ -1,67 +1,75 @@
 import pygame
+import sys
 import math
 
+# Initialize Pygame
 pygame.init()
 
 # Constants
 WIDTH, HEIGHT = 800, 600
-CENTER = (WIDTH // 2, HEIGHT // 2)
-CLOCK_RADIUS = 100
-JOYSTICK_RADIUS = 50
-
-# Colors
 WHITE = (255, 255, 255)
-BACKGROUND_COLOR = (0, 0, 0)
+TANK_SPEED = 5
+BULLET_SPEED = 10
+BULLET_COOLDOWN = 30  # Cooldown in frames
 
-# Create the Pygame window
+# Create the game window
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Clockwise Spinning Clock with Virtual Joystick")
+pygame.display.set_caption("Tank Game")
 
-# Clock variables
-angle = 0  # Initial angle
+# Tank properties
+tank_width, tank_height = 50, 50
+tank_color = (0, 128, 255)
+tank_x, tank_y = (WIDTH - tank_width) // 2, HEIGHT - tank_height
 
-# Initialize joystick
-pygame.joystick.init()
-if pygame.joystick.get_count() > 0:
-    joystick = pygame.joystick.Joystick(0)
-    joystick.init()
-else:
-    print("No joystick found. Exiting...")
-    pygame.quit()
-    exit()
+# Bullet properties
+bullet_width, bullet_height = 10, 10
+bullet_color = (255, 0, 0)
+bullets = []
+bullet_cooldown = 0
 
+# Game loop
 running = True
 while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
 
-    # Read joystick input
-    joystick_x = joystick.get_axis(0)
-    joystick_y = joystick.get_axis(1)
+    # Get the keys pressed by the player
+    keys = pygame.key.get_pressed()
 
-    # Calculate the angle from joystick input
-    angle = math.atan2(-joystick_y, joystick_x)
+    # Adjust tank position based on keys
+    if keys[pygame.K_LEFT] and tank_x > 0:
+        tank_x -= TANK_SPEED
+    if keys[pygame.K_RIGHT] and tank_x < WIDTH - tank_width:
+        tank_x += TANK_SPEED
 
-    # Clear the screen
-    screen.fill(BACKGROUND_COLOR)
+    # Shoot bullets
+    if keys[pygame.K_SPACE] and bullet_cooldown <= 0:
+        bullet_x = tank_x + (tank_width - bullet_width) / 2
+        bullet_y = tank_y
+        bullets.append([bullet_x, bullet_y])
+        bullet_cooldown = BULLET_COOLDOWN
 
-    # Draw the virtual joystick
-    pygame.draw.circle(screen, WHITE, CENTER, JOYSTICK_RADIUS, 2)  # Outer circle
-    joystick_pos = (CENTER[0] + joystick_x * JOYSTICK_RADIUS, CENTER[1] - joystick_y * JOYSTICK_RADIUS)
-    pygame.draw.circle(screen, WHITE, joystick_pos, 10)  # Joystick knob
+    # Update bullet positions
+    for bullet in bullets:
+        bullet[1] -= BULLET_SPEED
 
-    # Draw the clock face
-    pygame.draw.circle(screen, WHITE, CENTER, CLOCK_RADIUS)
+    # Remove out-of-screen bullets
+    bullets = [bullet for bullet in bullets if bullet[1] > 0]
 
-    # Calculate the clock hand position
-    hand_x = CENTER[0] + CLOCK_RADIUS * math.cos(angle)
-    hand_y = CENTER[1] + CLOCK_RADIUS * math.sin(angle)
+    # Decrease bullet cooldown
+    if bullet_cooldown > 0:
+        bullet_cooldown -= 1
 
-    # Draw the clock hand
-    pygame.draw.line(screen, WHITE, CENTER, (hand_x, hand_y), 5)
+    # Draw everything
+    screen.fill(WHITE)
 
-    # Update the display
-    pygame.display.flip()
+    for bullet in bullets:
+        pygame.draw.rect(screen, bullet_color, (bullet[0], bullet[1], bullet_width, bullet_height))  
 
+    pygame.draw.rect(screen, tank_color, (tank_x, tank_y, tank_width, tank_height))
+    pygame.display.update()
+
+# Quit Pygame
 pygame.quit()
+sys.exit()
