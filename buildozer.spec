@@ -32,10 +32,10 @@ version = 1.0
 requirements = kivy,pygame,pyjnius
 
 # (str) Supported orientations (landscape, portrait or all)
-orientation = portrait
+orientation = landscape
 
 # (bool) Indicate if the application should be fullscreen or not
-fullscreen = 0
+# fullscreen = 0
 
 # (list) Permissions
 # android.permissions = INTERNET,WRITE_EXTERNAL_STORAGE
