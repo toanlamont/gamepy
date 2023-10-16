@@ -2,8 +2,21 @@ import pygame
 import sys
 import math
 
+
+class bullet():
+    def __init__(self, x, y, radius, color, angle) -> None:
+        self.x = x
+        self.y = y
+        self.radius = radius
+        self.facing = angle
+        self.color = color
+        self.speed = 20
+
+    def draw_bullet(self):
+        pygame.draw.circle(screen, self.color, (self.x, self.y), self.radius)
+
 class Joystick:
-    def __init__(self, screen, position, background_radius=50, handle_radius=15, max_distance=40, color=(255, 255, 255)):
+    def __init__(self, screen, position, background_radius=50, handle_radius=20, max_distance=40, color=(255, 255, 255)):
         self.screen = screen
         self.position = position
         self.background_radius = background_radius
@@ -15,7 +28,7 @@ class Joystick:
 
     def draw(self):
         # Draw the joystick background
-        pygame.draw.circle(self.screen, self.color, self.position, self.background_radius)
+        pygame.draw.circle(self.screen, (255,0,0), self.center, self.background_radius)
         
         # Draw the movable joystick handle
         pygame.draw.circle(self.screen, self.color, self.position, self.handle_radius)
@@ -44,11 +57,11 @@ class Joystick:
                 self.moving = False
                 self.position = self.center
 
-class ImageRotator:
+class Tank():
     def __init__(self, screen, position, image_path):
         self.screen = screen
         self.position = position
-        self.image = pygame.image.load(image_path)
+        self.image = pygame.image.load(image_path).convert_alpha()
         self.rect = self.image.get_rect()
         self.angle = 0  # Initial angle
 
@@ -57,6 +70,7 @@ class ImageRotator:
         rotated_image = pygame.transform.rotate(self.image, -self.angle)
         rotated_rect = rotated_image.get_rect()
         rotated_rect.center = self.position
+        rotated_image.set_colorkey((0,0,0,0))
 
         # Draw the rotated image
         self.screen.blit(rotated_image, rotated_rect)
@@ -69,30 +83,49 @@ screen = pygame.display.set_mode((1000, 1000))
 pygame.display.set_caption("Joystick and Rotating Image")
 
 # Create a Joystick instance
-joystick = Joystick(screen, (100, 900))
+joystick = Joystick(screen, (900, 900))
+joystick2 = Joystick(screen, (200, 900))
+
 
 # Create an ImageRotator instance (provide the path to your image)
-image_rotator = ImageRotator(screen, (200, 200), 'image_game/blue-tank-0.92.png')
+tank = Tank(screen, [500, 500], 'image_game/blue-tank-0.92.png')
 
 running = True
+clock = pygame.time.Clock()
 while running:
+    clock.tick(27)
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
         joystick.update(event)
+        joystick2.update(event)
 
-    screen.fill((0, 0, 0))  # Clear the screen
+    screen.fill((128, 0, 128))  # Clear the screen
 
     # Draw the joystick
     joystick.draw()
+    joystick2.draw()
 
     # Update the angle of the rotating image based on joystick position
     dx, dy = joystick.position[0] - joystick.center[0], joystick.position[1] - joystick.center[1]
     angle = math.degrees(math.atan2(dy, dx))
-    image_rotator.angle = angle
+    tank.angle = angle
+    if 
+
+    dx2, dy2 = joystick2.position[0] - joystick2.center[0], joystick2.position[1] - joystick2.center[1]
+    angle2 = math.atan2(dy2, dx2)
+    new_x = joystick2.max_distance * math.cos(angle2)
+    new_y = joystick2.max_distance * math.sin(angle2)
+    if int(new_x) == 40:
+        new_x = 0 
+    if joystick2.moving:
+        tank.position[0] += new_x
+        tank.position[1] += new_y
+    # image_rotator.position[0] += joystick2.center[0] + joystick2.max_distance * math.cos(angle)
+    # image_rotator.position[1] += joystick2.center[1] + joystick2.max_distance * math.sin(angle)
 
     # Draw the rotating image
-    image_rotator.draw()
+    tank.draw()
 
     pygame.display.flip()  # Update the display
 
