@@ -68,7 +68,7 @@ directory = build
 # source.android_assets = media/icon.png, media/myfile.wav:media/somefile.wav
 
 # (list) List of application meta-data (key=value format)
-# android.meta_data = key=value
+# android.meta_data = android.app.multitouch
 
 # (list) List of Java classes to add to the compilation. They must be in source.<extension>
 # android.add_src = AndroidManifest.xml

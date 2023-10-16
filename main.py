@@ -1,14 +1,8 @@
 import pygame
+import sys
 import math
 import os
 
-pygame.init()
-
-# win = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
-win = pygame.display.set_mode((900, 500))
-
-
-pygame.display.set_caption("first game")
 
 color_dict = {
     'red': (255, 0, 0),
@@ -32,228 +26,234 @@ color_dict = {
     'violet': (238, 130, 238),
     'indigo': (75, 0, 130)
 }
-curr_dir = (os.getcwd())
 
-transparent_surface = pygame.Surface((100, 100), pygame.SRCALPHA)  # Use SRCALPHA for transparency
+pygame.init()
+# Set up the screen
+# screen = pygame.display.set_mode((1920, 1080), pygame.FULLSCREEN)
+# win_size = (screen.get_width(), screen.get_height())
+# screen = pygame.display.set_mode(win_size, pygame.FULLSCREEN)
 
-# Brown color with an alpha value of 128 (semi-transparent)
-brown_color = (139, 69, 19, 100)
-violet = (238, 130, 238, 100)
+# # pygame.event.set_allowed([pygame.MOUSEBUTTONUP, pygame.MOUSEBUTTONDOWN, pygame.QUIT,
+#                               pygame.FINGERUP, pygame.FINGERDOWN, pygame.KEYDOWN, pygame.KEYUP])
+screen = pygame.display.set_mode((1920, 1080))
 
-
-# Position of the transparent object
-
-
-
-
-class player():
-    def __init__(self, x, y, width, height) -> None:
-        self.x = x
-        self.y = y
-        self.width = width
-        self.height = height
-        self.vel = 10
-        self.is_jump = False
-        self.left = False
-        self.right = False
-        self.walk_count = 0
-        self.standing = True
-        self.walk_right = [pygame.image.load(f'{curr_dir}/image_game/R{i}.png') for i in range(1, 10)]
-        self.walk_left = [pygame.image.load(f'{curr_dir}/image_game/L{i}.png') for i in range(1, 10)]
-        self.standing = pygame.image.load(f'{curr_dir}/image_game/standing.png')
-        self.hitbox = (self.x + 20, self.y, 28, 60)
-
-    def draw_man(self):
-        if self.walk_count + 1 > 27:
-            self.walk_count = 0
-
-        if not self.standing:
-            if self.left:
-                win.blit(self.walk_left[self.walk_count//3], (self.x, self.y))
-                self.walk_count += 1
-
-            elif self.right:
-                win.blit(self.walk_right[self.walk_count//3], (self.x, self.y))
-                self.walk_count += 1
-
-        else:
-            if self.left:
-                win.blit(self.walk_left[0], (self.x, self.y))
-            else:
-                win.blit(self.walk_right[0], (self.x, self.y))
-        self.hitbox = (self.x + 20, self.y + 5, 28, 60)
-        pygame.draw.rect(win, color_dict['navy'], self.hitbox, 2)
+pygame.display.set_caption("Joystick and Rotating Image")
 
 
 class bullet():
-    def __init__(self, x, y, radius, color, facing) -> None:
+    def __init__(self, x, y, radius, color, angle=None) -> None:
         self.x = x
         self.y = y
         self.radius = radius
-        self.facing = facing
+        self.facing = angle
         self.color = color
-        self.vel = 20 * facing
+        self.speed = 20
+        self.angle = angle
 
     def draw_bullet(self):
-        pygame.draw.circle(win, self.color, (self.x, self.y), self.radius)
+        pygame.draw.circle(screen, self.color, (self.x, self.y), self.radius)
 
 
-class button():
-    def __init__(self, x, y, radius, color, clicked_color) -> None:
-        self.x = x
-        self.y = y
-        self.radius = radius
-        self.color = brown_color
-        self.clicked_color = violet
-        self.display_color = color
-        self.is_clicking = False
+class Joystick:
+    def __init__(self, screen, position, background_radius=150, handle_radius=100, max_distance=100, color=(255, 255, 255)):
+        self.screen = screen
+        self.position = position
+        self.background_radius = background_radius
+        self.handle_radius = handle_radius
+        self.max_distance = max_distance
+        self.color = color
+        self.center = self.position
+        self.moving = False
+        self.angle = None
 
-    def draw_button(self):
-        if self.is_clicking:
-            pygame.draw.circle(transparent_surface, brown_color, (50, 50), 50)
-            win.blit(transparent_surface, (self.x - 50, self.y - 50))
-        else:
-            pygame.draw.circle(transparent_surface, violet, (50, 50), 50)
-            win.blit(transparent_surface, (self.x - 50, self.y  - 50))
-            
+    def draw(self):
+        # Draw the joystick background
+        pygame.draw.circle(self.screen, (255,0,0), self.center, self.background_radius)
+        
+        # Draw the movable joystick handle
+        pygame.draw.circle(self.screen, self.color, self.position, self.handle_radius)
 
-    def is_click(self, clicked_point):
-        x, y = clicked_point
-        distance = math.sqrt((x - self.x) ** 2 + (y - self.y) ** 2)
-        return distance <= self.radius
-
-
-class enemy():
-    def __init__(self, x, y, width, height, end) -> None:
-        self.x = x
-        self.y = y
-        self.width = width
-        self.height = height
-        self.vel = 10
-        self.end = end
-        self.vel = 3
-        self.path = [self.x, self.end]
-        self.walk_count = 0
-        self.walk_right = [pygame.image.load(f'{curr_dir}/image_game/R{i}E.png') for i in range(1, 12)]
-        self.walk_left = [pygame.image.load(f'{curr_dir}/image_game/L{i}E.png') for i in range(1, 12)]
-        self.health = 10
-        self.die = False
-
-    def draw_enemy(self):
-        if self.health > 0:
-            if self.walk_count > 27:
-                self.walk_count = 0
-            if self.vel > 0:
-                if self.x > 450:
-                    self.vel *= -1
-                else:
-                    win.blit(self.walk_right[self.walk_count // 3], (self.x, self.y))
-                    self.x += self.vel
+    def update(self, event):
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            mouse_x, mouse_y = (event.dict['x']* win_size[0], event.dict['y']*win_size[1])
+            distance = math.hypot(mouse_x - self.position[0], mouse_y - self.position[1])
+            if distance <= self.background_radius:
+                self.moving = True
+        elif event.type == pygame.MOUSEMOTION and self.moving:
+            mouse_x, mouse_y = (event.dict['x']* win_size[0], event.dict['y']*win_size[1])
+            dx = mouse_x - self.center[0]
+            dy = mouse_y - self.center[1]
+            distance = math.hypot(dx, dy)
+            if distance > self.max_distance:
+                angle = math.atan2(dy, dx)
+                self.angle = angle
+                new_x = self.center[0] + self.max_distance * math.cos(angle)
+                new_y = self.center[1] + self.max_distance * math.sin(angle)
             else:
-                if self.x < 50:
-                    self.vel *= -1
-                else:
-                    win.blit(self.walk_left[self.walk_count // 3], (self.x, self.y))
-                    self.x += self.vel
-            self.walk_count += 1
-            self.hitbox = (self.x + 15, self.y + 5, 30, 55)
-            pygame.draw.rect(win, color_dict['red'], (self.x, self.y, 50, 10))
-            pygame.draw.rect(win, color_dict['navy'], (self.x, self.y, 5 * self.health, 10))
+                new_x, new_y = mouse_x, mouse_y
+            self.position = (new_x, new_y)
+        elif event.type == pygame.MOUSEBUTTONUP:
+            self.moving = False
+            self.position = self.center
+        print(event.dict)
 
-        else:
-            self.hitbox = [0,0,0,0]
 
+class Tank():
+    def __init__(self, screen, position, image_path):
+        self.screen = screen
+        self.position = position
+        self.image = pygame.image.load(image_path).convert_alpha()
+        self.rect = self.image.get_rect()
+        self.angle = 0  # Initial angle
+        self.health = 100
+
+
+    def draw(self):
+        self.hitbox = [self.position[0] - 50, self.position[1]- 50, 100, 100]
+        # Create a rotated image
+        rotated_image = pygame.transform.rotate(self.image, -math.degrees(self.angle))
+        rotated_rect = rotated_image.get_rect()
+        rotated_rect.center = self.position
+        rotated_image.set_colorkey((0,0,0,0))
+        pygame.draw.rect(screen, color_dict['gray'], self.hitbox, 2)
+        pygame.draw.rect(screen, color_dict['red'], (self.position[0] - 50, self.position[1] - 50, 100, 10))
+        pygame.draw.rect(screen, color_dict['navy'], (self.position[0] - 50, self.position[1] - 50, self.health, 10))
+
+        # Draw the rotated image
+        self.screen.blit(rotated_image, rotated_rect)
 
     def hit(self):
-        print('hit')
         self.health -= 1
-        
 
 
+class Enemy():
+    def __init__(self, screen, position, image_path):
+        self.screen = screen
+        self.position = position
+        self.image = pygame.image.load(image_path).convert_alpha()
+        self.rect = self.image.get_rect()
+        self.angle = 0  # Initial angle
+        self.health = 100
+        self.i = 0
+
+    def draw(self):
+        # Create a rotated image
+        self.hitbox = [self.position[0] - 50, self.position[1]- 50, 100, 100]
+        self.image = pygame.transform.scale(self.image, (100, 100))
+        rotated_image = pygame.transform.rotate(self.image, -math.degrees(self.angle))
+        rotated_rect = rotated_image.get_rect()
+        rotated_rect.center = self.position
+        rotated_image.set_colorkey((0,0,0,0))
+        pygame.draw.rect(screen, color_dict['cyan'], self.hitbox, 2)
+
+        # Draw the rotated image
+        self.screen.blit(rotated_image, rotated_rect)
+        pygame.draw.rect(screen, color_dict['red'], (self.position[0] - 50, self.position[1] - 50, 100, 10))
+        pygame.draw.rect(screen, color_dict['navy'], (self.position[0] - 50, self.position[1] - 50, self.health, 10))
+
+    def hit(self):
+        self.i += 1
+        self.health -= 1
+
+# Initialize Pygame
 
 
+# Create a Joystick instance
+joystick = Joystick(screen, (1800, 800))
+joystick2 = Joystick(screen, (200, 800))
+curr_dir = (os.getcwd())
 
 
-bg = pygame.image.load(f'{curr_dir}/image_game/bg.jpg')
-man = player(0, 0, 50, 50)
-toan = player(50, 50, 50, 50)
-fire_button = button(x=400, y=400, radius=50, color=(255,0,0, 100), clicked_color=color_dict['gold'])
-gob = enemy(200, 420, 30, 50, 450)
+# Create an ImageRotator instance (provide the path to your image)
+tank = Tank(screen, [500, 500], f'{curr_dir}/image_game/blue-tank-0.92.png')
+enemy = Enemy(screen, [800, 500], f'{curr_dir}/image_game/mothership-0.92.png')
 bullets = []
+enemies = []
 
+running = True
+clock = pygame.time.Clock()
 
-def re_draw():
-    win.blit(bg, (0, 0))
-    man.draw_man()
-    fire_button.draw_button()
-    gob.draw_enemy()
+def re_draw_all():
+    joystick.draw()
+    joystick2.draw()
+    tank.draw()
+    for ene in enemies:
+        ene.draw()
+
     for b in bullets:
         b.draw_bullet()
-    text = font.render("score: " + str(score), True, color_dict['brown'])
-    win.blit(text, (300, 0))
-    pygame.display.update()
-
-
-run = True
-score = 0
-font = pygame.font.SysFont("comicsans", 30, True)
-clock = pygame.time.Clock()
-button_clicked = False
-while run:
+clock_count = 0
+while running:
     clock.tick(27)
+    clock_count += 1
+    if clock_count > 27:
+        clock_count = 0
+
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
-            print('im quit')
-            run = False
-        keys = pygame.key.get_pressed()
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            if fire_button.is_click(event.pos):
-                fire_button.is_clicking = True
-        if event.type == pygame.MOUSEBUTTONUP:
-            fire_button.is_clicking = False
-    for b in bullets:
-        if b.x < 500 and b.x > 0:
-            b.x += b.vel
-        else:
-            bullets.remove(b)
-        if b.x > gob.x and b.x < gob.x + gob.hitbox[2] and b.y > gob.y and b.y < gob.y + gob.hitbox[3]:
-            gob.hit()
-            score += 1
-            bullets.remove(b)
+            running = False
+        joystick.update(event)
+        joystick2.update(event)
 
-    if man.y < 460 - man.height:
-        man.y += 1
-    if keys[pygame.K_LEFT] and man.x > 0:
-        man.x -= man.vel
-        man.left = True
-        man.right = False
-        man.standing = False
+    screen.fill((102, 153, 255))  # Clear the screen
 
-    elif keys[pygame.K_RIGHT] and man.x < 450:
-        man.x += man.vel
-        man.left = False
-        man.right = True
-        man.standing = False
+    # Update the angle of the rotating image based on joystick position
+    dx, dy = joystick.position[0] - joystick.center[0], joystick.position[1] - joystick.center[1]
+    angle = math.atan2(dy, dx)
+    if joystick.moving:
+        tank.angle = angle
 
-    else:
-        man.standing = True
-        walk_count = 0
+    dx2, dy2 = joystick2.position[0] - joystick2.center[0], joystick2.position[1] - joystick2.center[1]
+    angle2 = math.atan2(dy2, dx2)
 
-    if keys[pygame.K_UP] and man.y > 0:
-        man.y -= man.vel
-    if keys[pygame.K_DOWN] and man.y < 460 - man.height:
-        man.y += man.vel
-    if keys[pygame.K_SPACE] or fire_button.is_clicking:
-        if man.left:
-            facing = -1
-        else:
-            facing = 1
-        if len(bullets) < 6:
-            bullets.append(bullet(x=(man.x + man.width / 2), y=(man.y + (man.height + 30) / 2), radius=6, color=color_dict['blue'], facing=facing))
+    new_x = 20 * math.cos(angle2)
+    new_y = 20 * math.sin(angle2)
+    if int(new_x) == 40:
+        new_x = 0 
+    if joystick2.moving:
+        
+        tank.position[0] += new_x
+        tank.position[1] += new_y
 
-    if man.is_jump:
-        is_jump = False
+    if joystick.moving and clock_count % 9 == 0:
+        bullets.append(bullet(x=tank.position[0] + 100* math.cos(tank.angle), y=tank.position[1] + 100* math.sin(tank.angle), radius=10, color=(255,0,0), angle=tank.angle))
 
-    re_draw()
+    if len(enemies) == 0:
+        enemies.append(Enemy(screen, [800, 500], f'{curr_dir}/image_game/mothership-0.92.png'))
+
+    for ene in enemies:
+        
+        dx_ene, dy_ene = ene.position[0] - tank.position[0], ene.position[1] - tank.position[1]
+        angle3 = math.atan2(dy_ene, dx_ene)
+        print(angle3)
+
+        new_x_ene = 2 * math.cos(angle3)
+        new_y_ene = 2 * math.sin(angle3)
+        ene.position[0] -= new_x_ene
+        ene.position[1] -= new_y_ene
+        for b in bullets:
+            if b.x > 1920 or b.x < 0 or b.y > 1080 or b.y < 0:
+                bullets.remove(b)
+            if b.x > ene.hitbox[0] and b.x < ene.hitbox[2] + ene.hitbox[0] and b.y > ene.hitbox[1] and b.y < ene.hitbox[1] + 100:
+                ene.hit()
+            b.x += 10* math.cos(b.angle)
+            b.y += 10* math.sin(b.angle)
+
+        if ene.health < 0:
+            enemies.remove(ene)
+            enemies.append(Enemy(screen, [800, 500], f'{curr_dir}/image_game/mothership-0.92.png'))
+
+
+    re_draw_all()
+    
+
+    
+    # image_rotator.position[0] += joystick2.center[0] + joystick2.max_distance * math.cos(angle)
+    # image_rotator.position[1] += joystick2.center[1] + joystick2.max_distance * math.sin(angle)
+
+
+
+    pygame.display.flip()  # Update the display
 
 pygame.quit()
+sys.exit()
