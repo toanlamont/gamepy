@@ -29,13 +29,15 @@ color_dict = {
 
 pygame.init()
 # Set up the screen
-# screen = pygame.display.set_mode((1920, 1080), pygame.FULLSCREEN)
 # win_size = (screen.get_width(), screen.get_height())
+win_size = (1920, 1080)
+
+# screen = pygame.display.set_mode((1920, 1080))
 # screen = pygame.display.set_mode(win_size, pygame.FULLSCREEN)
 
 # # pygame.event.set_allowed([pygame.MOUSEBUTTONUP, pygame.MOUSEBUTTONDOWN, pygame.QUIT,
 #                               pygame.FINGERUP, pygame.FINGERDOWN, pygame.KEYDOWN, pygame.KEYUP])
-screen = pygame.display.set_mode((1920, 1080))
+screen = pygame.display.set_mode(win_size)
 
 pygame.display.set_caption("Joystick and Rotating Image")
 
@@ -74,13 +76,35 @@ class Joystick:
         pygame.draw.circle(self.screen, self.color, self.position, self.handle_radius)
 
     def update(self, event):
-        if event.type == pygame.MOUSEBUTTONDOWN:
+        if event.type == pygame.FINGERDOWN:
             mouse_x, mouse_y = (event.dict['x']* win_size[0], event.dict['y']*win_size[1])
             distance = math.hypot(mouse_x - self.position[0], mouse_y - self.position[1])
             if distance <= self.background_radius:
                 self.moving = True
-        elif event.type == pygame.MOUSEMOTION and self.moving:
+        elif event.type == pygame.FINGERMOTION and self.moving:
             mouse_x, mouse_y = (event.dict['x']* win_size[0], event.dict['y']*win_size[1])
+            dx = mouse_x - self.center[0]
+            dy = mouse_y - self.center[1]
+            distance = math.hypot(dx, dy)
+            if distance > self.max_distance:
+                angle = math.atan2(dy, dx)
+                self.angle = angle
+                new_x = self.center[0] + self.max_distance * math.cos(angle)
+                new_y = self.center[1] + self.max_distance * math.sin(angle)
+            else:
+                new_x, new_y = mouse_x, mouse_y
+            self.position = (new_x, new_y)
+        elif event.type == pygame.FINGERUP:
+            self.moving = False
+            self.position = self.center
+
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            mouse_x, mouse_y = event.pos
+            distance = math.hypot(mouse_x - self.position[0], mouse_y - self.position[1])
+            if distance <= self.background_radius:
+                self.moving = True
+        elif event.type == pygame.MOUSEMOTION and self.moving:
+            mouse_x, mouse_y = event.pos
             dx = mouse_x - self.center[0]
             dy = mouse_y - self.center[1]
             distance = math.hypot(dx, dy)
@@ -95,8 +119,6 @@ class Joystick:
         elif event.type == pygame.MOUSEBUTTONUP:
             self.moving = False
             self.position = self.center
-        print(event.dict)
-
 
 class Tank():
     def __init__(self, screen, position, image_path):
@@ -236,6 +258,7 @@ while running:
                 bullets.remove(b)
             if b.x > ene.hitbox[0] and b.x < ene.hitbox[2] + ene.hitbox[0] and b.y > ene.hitbox[1] and b.y < ene.hitbox[1] + 100:
                 ene.hit()
+                bullets.remove(b)
             b.x += 10* math.cos(b.angle)
             b.y += 10* math.sin(b.angle)
 
