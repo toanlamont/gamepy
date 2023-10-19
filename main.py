@@ -1,4 +1,6 @@
+from typing import Any
 import pygame
+import random
 import sys
 import math
 import os
@@ -30,9 +32,14 @@ color_dict = {
 pygame.init()
 # Set up the screen
 # win_size = (screen.get_width(), screen.get_height())
-win_size = (1920, 1080)
+display_info = pygame.display.Info()
 
-# screen = pygame.display.set_mode((1920, 1080))
+# Get the screen resolution
+screen_width = display_info.current_w
+screen_height = display_info.current_h
+win_size = (screen_width, screen_height)
+
+# screen = pygame.display.set_mode((win_size[0], win_size[1]))
 # screen = pygame.display.set_mode(win_size, pygame.FULLSCREEN)
 
 # # pygame.event.set_allowed([pygame.MOUSEBUTTONUP, pygame.MOUSEBUTTONDOWN, pygame.QUIT,
@@ -42,18 +49,28 @@ screen = pygame.display.set_mode(win_size)
 pygame.display.set_caption("Joystick and Rotating Image")
 
 
-class bullet():
-    def __init__(self, x, y, radius, color, angle=None) -> None:
+class bullet(pygame.sprite.Sprite):
+    def __init__(self, x, y, image_path, angle=None) -> None:
+        pygame.sprite.Sprite.__init__(self)
         self.x = x
         self.y = y
-        self.radius = radius
-        self.facing = angle
-        self.color = color
         self.speed = 20
         self.angle = angle
+        self.image = pygame.image.load(image_path)
+        self.image.set_colorkey((0,0,0,0))
+        self.rect = self.image.get_rect()
+        self.rect.center = (x, y)
 
-    def draw_bullet(self):
-        pygame.draw.circle(screen, self.color, (self.x, self.y), self.radius)
+
+    def update(self) -> None:
+        self.rect.centerx += 10 * math.cos(self.angle)
+        self.rect.centery += 10 * math.sin(self.angle)
+
+
+class EnemyBullet(bullet):
+    def update(self) -> None:
+        self.rect.centerx -= 10 * math.cos(self.angle)
+        self.rect.centery -= 10 * math.sin(self.angle)
 
 
 class Joystick:
@@ -147,33 +164,28 @@ class Tank(pygame.sprite.Sprite):
         self.health -= 1
 
 
-class Enemy():
+class Enemy(pygame.sprite.Sprite):
     def __init__(self, screen, position, image_path):
+        pygame.sprite.Sprite.__init__(self)
         self.screen = screen
         self.position = position
-        self.image = pygame.image.load(image_path).convert_alpha()
+        self.image = pygame.transform.scale(pygame.image.load(image_path), (100, 100))
+        self.org_img = self.image
         self.rect = self.image.get_rect()
         self.angle = 0  # Initial angle
-        self.health = 100
-        self.i = 0
+        self.health = 10
+        self.rect.center = position
 
-    def draw(self):
+    def update(self):
         # Create a rotated image
-        self.hitbox = [self.position[0] - 50, self.position[1]- 50, 100, 100]
-        self.image = pygame.transform.scale(self.image, (100, 100))
-        rotated_image = pygame.transform.rotate(self.image, -math.degrees(self.angle))
-        rotated_rect = rotated_image.get_rect()
-        rotated_rect.center = self.position
-        rotated_image.set_colorkey((0,0,0,0))
-        pygame.draw.rect(screen, color_dict['cyan'], self.hitbox, 2)
-
-        # Draw the rotated image
-        self.screen.blit(rotated_image, rotated_rect)
-        pygame.draw.rect(screen, color_dict['red'], (self.position[0] - 50, self.position[1] - 50, 100, 10))
-        pygame.draw.rect(screen, color_dict['navy'], (self.position[0] - 50, self.position[1] - 50, self.health, 10))
-
+        self.hitbox = [self.rect.centerx - 50, self.rect.centery- 50, 100, 100]
+        self.image = pygame.transform.rotate(self.org_img, -math.degrees(self.angle))
+        self.image.set_colorkey((0,0,0,0))
+        self.rect = self.image.get_rect(center=self.rect.center)
+        pygame.draw.rect(screen, color_dict['gray'], self.hitbox, 2)
+        pygame.draw.rect(screen, color_dict['red'], (self.rect.centerx - 50, self.rect.centery - 50, 100, 10))
+        pygame.draw.rect(screen, color_dict['navy'], (self.rect.centerx - 50, self.rect.centery - 50, self.health, 10))
     def hit(self):
-        self.i += 1
         self.health -= 1
 
 # Initialize Pygame
@@ -182,24 +194,23 @@ sprites = pygame.sprite.Group()
 
 
 # Create a Joystick instance
-joystick = Joystick(screen, (1800, 800))
+joystick = Joystick(screen, (win_size[0] - 200, 800))
 joystick2 = Joystick(screen, (200, 800))
 curr_dir = (os.getcwd())
 
 
 # Create an ImageRotator instance (provide the path to your image)
 tank = Tank(screen, [500, 500], f'{curr_dir}/image_game/blue-tank-0.92.png')
-# enemy = Enemy(screen, [800, 500], f'{curr_dir}/image_game/mothership-0.92.png')
-# bullets = []
-# enemies = []
-# enemies_bullets = []
+enemy = Enemy(screen, [800, 500], f'{curr_dir}/image_game/mothership-0.92.png')
+bullets = []
+enemies = []
+enemies_bullets = []
 running = True
 clock = pygame.time.Clock()
 sprites.add(tank)
 
 
 def re_draw_all():
-    print(tank.rect.center)    
     joystick.draw()
     joystick2.draw()
     sprites.update()
@@ -212,22 +223,23 @@ def re_draw_all():
     elif tank.rect.centerx > win_size[0] - 100:
         for sprite in sprites:
             sprite.rect.move_ip(-30, 0)
-    # tank.draw()
-    # for ene in enemies:
-    #     ene.draw()
 
-    # for b in bullets:
-    #     b.draw_bullet()
+    if tank.rect.centery < 100:
+        for sprite in sprites:
+            sprite.rect.move_ip(0, 30)
 
-    # for eb in enemies_bullets:
-    #     eb.draw_bullet()
+    elif tank.rect.centery > win_size[1] - 100:
+        for sprite in sprites:
+            sprite.rect.move_ip(0, -30)
+    for ene in enemies:
+        sprites.add(ene)
 
 
 clock_count = 0
 while running:
     clock.tick(27)
     clock_count += 1
-    if clock_count > 27:
+    if clock_count > 60:
         clock_count = 0
 
     for event in pygame.event.get():
@@ -255,45 +267,73 @@ while running:
         tank.rect.centerx += new_x
         tank.rect.centery += new_y
 
-    # if joystick.moving and clock_count % 9 == 0:
-    #     bullets.append(bullet(x=tank.position[0] + 100* math.cos(tank.angle), y=tank.position[1] + 100* math.sin(tank.angle), radius=10, color=(255,0,0), angle=tank.angle))
+    if joystick.moving and clock_count % 10 == 0:
+        bu = (bullet(x=tank.rect.centerx + 100 * math.cos(tank.angle), y=tank.rect.centery + 100 * math.sin(tank.angle), angle=tank.angle, image_path=f'{curr_dir}/image_game/blue-bullet.png'))
+        bullets.append(bu)
+        sprites.add(bu)
 
-    # if len(enemies) == 0:
-    #     enemies.append(Enemy(screen, [800, 500], f'{curr_dir}/image_game/mothership-0.92.png'))
 
-    # for ene in enemies:
+    if len(enemies) == 0:
+        for i in range(2):
+            if tank.rect.centerx - 300 > 0 and tank.rect.centerx + 300 < win_size[0]:
+                random_x = random.choice((random.randrange(0, tank.rect.centerx - 300), random.randrange(tank.rect.centerx + 300, win_size[0])))
+            elif tank.rect.centerx - 300 < 0:
+                random_x = random.randrange(random.randrange(tank.rect.centerx + 300, win_size[0]))
+            elif tank.rect.centerx + 300 > win_size[0]:
+                random_x = random.randrange(0, random.randrange(tank.rect.centerx - 300))
+
+            if tank.rect.centery - 300 > 0 and tank.rect.centery + 300 < win_size[1]:
+                random_y = random.choice((random.randrange(0, tank.rect.centery - 300), random.randrange(tank.rect.centery + 300, win_size[1])))
+            elif tank.rect.centery - 300 < 0:
+                random_y = random.randrange(random.randrange(tank.rect.centery + 300, win_size[1]))
+            elif tank.rect.centery + 300 > win_size[1]:
+                random_y = random.randrange(0, random.randrange(tank.rect.centery - 300))
+
+
+            enemies.append(Enemy(screen, [random_x, random_y], f'{curr_dir}/image_game/mothership-0.92.png'))
+
+    for ene in enemies:
         
-    #     dx_ene, dy_ene = ene.position[0] - tank.position[0], ene.position[1] - tank.position[1]
-    #     angle3 = math.atan2(dy_ene, dx_ene)
-    #     ene.angle = angle3
+        dx_ene, dy_ene = ene.rect.centerx - tank.rect.centerx, ene.rect.centery - tank.rect.centery
+        angle3 = math.atan2(dy_ene, dx_ene)
+        ene.angle = angle3
 
-    #     new_x_ene = 2 * math.cos(angle3)
-    #     new_y_ene = 2 * math.sin(angle3)
-    #     ene.position[0] -= new_x_ene
-    #     ene.position[1] -= new_y_ene
-    #     for b in bullets:
-    #         if b.x > 1920 or b.x < 0 or b.y > 1080 or b.y < 0:
-    #             bullets.remove(b)
-    #         if b.x > ene.hitbox[0] and b.x < ene.hitbox[2] + ene.hitbox[0] and b.y > ene.hitbox[1] and b.y < ene.hitbox[1] + 100:
-    #             ene.hit()
-    #             bullets.remove(b)
-    #         b.x += 10* math.cos(b.angle)
-    #         b.y += 10* math.sin(b.angle)
+        new_x_ene = 2 * math.cos(angle3)
+        new_y_ene = 2 * math.sin(angle3)
+        ene.rect.centerx -= new_x_ene
+        ene.rect.centery -= new_y_ene
+        for b in bullets:
+            try:
+                if b.rect.centerx > win_size[0] or b.rect.centerx < 0 or b.rect.centery > win_size[1] or b.rect.centery < 0:
+                    bullets.remove(b)
+                    sprites.remove(b)
+                if b.rect.centerx > ene.hitbox[0] and b.rect.centerx < ene.hitbox[2] + ene.hitbox[0] and b.rect.centery > ene.hitbox[1] and b.rect.centery < ene.hitbox[1] + 100 and len(enemies) != 0:
+                    ene.hit()
+                    bullets.remove(b)
+                    sprites.remove(b)
+            except:
+                continue
 
-    #     if ene.health < 0:
-    #         enemies.remove(ene)
-    #         enemies.append(Enemy(screen, [800, 500], f'{curr_dir}/image_game/mothership-0.92.png'))
-    #     if clock_count // 27 == 1:
-    #         enemies_bullets.append(bullet(x=ene.position[0] - 100* math.cos(ene.angle), y=ene.position[1] - 100* math.sin(ene.angle), radius=10, color=(0,0,155), angle=ene.angle))
-    #     for eb in enemies_bullets:
-    #         if eb.x > 1920 or eb.x < 0 or eb.y > 1080 or eb.y < 0:
-    #             enemies_bullets.remove(eb)
-    #         if eb.x > tank.hitbox[0] and eb.x < tank.hitbox[2] + tank.hitbox[0] and eb.y > tank.hitbox[1] and eb.y < tank.hitbox[1] + 100:
-    #             # ene.hit()
-    #             enemies_bullets.remove(eb)
-    #         eb.x -= 10* math.cos(eb.angle)
-    #         eb.y -= 10* math.sin(eb.angle)
 
+        if ene.health < 0:
+            enemies.remove(ene)
+            sprites.remove(ene)
+
+        #     enemies.append(Enemy(screen, [800, 500], f'{curr_dir}/image_game/mothership-0.92.png'))
+        if clock_count // 60  == 1:
+            ene_bu = (EnemyBullet(x=ene.rect.centerx + 100 * math.cos(ene.angle), y=ene.rect.centery + 100 * math.sin(ene.angle), angle=ene.angle, image_path=f'{curr_dir}/image_game/trigonship.png'))
+            enemies_bullets.append(ene_bu)
+            print('append', clock_count // 60)
+            sprites.add(ene_bu)
+        for ene_bu in enemies_bullets:
+            if ene_bu.rect.centerx > win_size[0] or ene_bu.rect.centerx < 0 or ene_bu.rect.centery > win_size[1] or ene_bu.rect.centery < 0:
+                enemies_bullets.remove(ene_bu)
+            if ene_bu.rect.centerx > tank.hitbox[0] and ene_bu.rect.centerx < tank.hitbox[2] + tank.hitbox[0] and ene_bu.rect.centery > tank.hitbox[1] and ene_bu.rect.centery < tank.hitbox[1] + 100:
+                # ene.hit()
+                enemies_bullets.remove(ene_bu)
+                sprites.remove(ene_bu)
+
+    # print(clock_count // 27)
     re_draw_all()
     
 
