@@ -137,7 +137,8 @@ class enemy():
         self.walk_right = [pygame.image.load(f'{curr_dir}/image_game/R{i}E.png') for i in range(1, 12)]
         self.walk_left = [pygame.image.load(f'{curr_dir}/image_game/L{i}E.png') for i in range(1, 12)]
         self.health = 10
-        self.die = False
+        self.die = False    print(squares)
+
 
     def draw_enemy(self):
         if self.health > 0:
