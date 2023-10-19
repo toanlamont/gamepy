@@ -191,9 +191,10 @@ tank = Tank(screen, [500, 500], f'{curr_dir}/image_game/blue-tank-0.92.png')
 enemy = Enemy(screen, [800, 500], f'{curr_dir}/image_game/mothership-0.92.png')
 bullets = []
 enemies = []
-
+enemies_bullets = []
 running = True
 clock = pygame.time.Clock()
+
 
 def re_draw_all():
     joystick.draw()
@@ -204,6 +205,11 @@ def re_draw_all():
 
     for b in bullets:
         b.draw_bullet()
+
+    for eb in enemies_bullets:
+        eb.draw_bullet()
+
+
 clock_count = 0
 while running:
     clock.tick(27)
@@ -233,7 +239,6 @@ while running:
     if int(new_x) == 40:
         new_x = 0 
     if joystick2.moving:
-        
         tank.position[0] += new_x
         tank.position[1] += new_y
 
@@ -247,7 +252,7 @@ while running:
         
         dx_ene, dy_ene = ene.position[0] - tank.position[0], ene.position[1] - tank.position[1]
         angle3 = math.atan2(dy_ene, dx_ene)
-        print(angle3)
+        ene.angle = angle3
 
         new_x_ene = 2 * math.cos(angle3)
         new_y_ene = 2 * math.sin(angle3)
@@ -265,7 +270,16 @@ while running:
         if ene.health < 0:
             enemies.remove(ene)
             enemies.append(Enemy(screen, [800, 500], f'{curr_dir}/image_game/mothership-0.92.png'))
-
+        if clock_count // 27 == 1:
+            enemies_bullets.append(bullet(x=ene.position[0] - 100* math.cos(ene.angle), y=ene.position[1] - 100* math.sin(ene.angle), radius=10, color=(0,0,155), angle=ene.angle))
+        for eb in enemies_bullets:
+            if eb.x > 1920 or eb.x < 0 or eb.y > 1080 or eb.y < 0:
+                enemies_bullets.remove(eb)
+            if eb.x > tank.hitbox[0] and eb.x < tank.hitbox[2] + tank.hitbox[0] and eb.y > tank.hitbox[1] and eb.y < tank.hitbox[1] + 100:
+                # ene.hit()
+                enemies_bullets.remove(eb)
+            eb.x -= 10* math.cos(eb.angle)
+            eb.y -= 10* math.sin(eb.angle)
 
     re_draw_all()
     
