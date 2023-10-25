@@ -50,7 +50,7 @@ pygame.display.set_caption("Joystick and Rotating Image")
 
 
 class bullet(pygame.sprite.Sprite):
-    def __init__(self, x, y, image_path, angle=None) -> None:
+    def __init__(self, x, y, image_path, angle=None, speed=5) -> None:
         pygame.sprite.Sprite.__init__(self)
         self.x = x
         self.y = y
@@ -60,17 +60,35 @@ class bullet(pygame.sprite.Sprite):
         self.image.set_colorkey((0,0,0,0))
         self.rect = self.image.get_rect()
         self.rect.center = (x, y)
+        self.speed = speed
 
 
     def update(self) -> None:
-        self.rect.centerx += 20 * math.cos(self.angle)
-        self.rect.centery += 20 * math.sin(self.angle)
+        self.rect.centerx += self.speed * math.cos(self.angle)
+        self.rect.centery += self.speed * math.sin(self.angle)
 
+
+class Object(pygame.sprite.Sprite):
+    def __init__(self, position, image_path):
+        pygame.sprite.Sprite.__init__(self)
+        self.position = position
+        self.image = pygame.transform.scale(pygame.image.load(image_path), (100, 100))
+        self.org_img = self.image
+        self.rect = self.image.get_rect()
+        self.rect.center = position
+      
+        self.cooldown_bullet = 0
+        self.hitbox = [self.rect.centerx - 75, self.rect.centery - 75, 150 , 150]
+        self.image.set_colorkey((0,0,0,0))
+
+
+    def update(self):
+        pass
 
 class EnemyBullet(bullet):
     def update(self) -> None:
-        self.rect.centerx -= 10 * math.cos(self.angle)
-        self.rect.centery -= 10 * math.sin(self.angle)
+        self.rect.centerx -= 2 * math.cos(self.angle)
+        self.rect.centery -= 2 * math.sin(self.angle)
 
 
 class Joystick:
@@ -90,7 +108,7 @@ class Joystick:
         pygame.draw.circle(self.screen, (255,0,0), self.center, self.background_radius)
         
         # Draw the movable joystick handle
-        pygame.draw.circle(self.screen, self.color, self.position, self.handle_radius)
+        pygame.draw.circle(self.screen, (128, 128, 128, 50), self.position, self.handle_radius)
 
     def update(self, event):
         if event.type == pygame.FINGERDOWN:
@@ -140,7 +158,7 @@ class Joystick:
 
 
 class Tank(pygame.sprite.Sprite):
-    def __init__(self, screen, position, image_path):
+    def __init__(self, screen, position, image_path, cooldown=60, speed=10):
         pygame.sprite.Sprite.__init__(self)
 
         self.screen = screen
@@ -152,6 +170,10 @@ class Tank(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.center = position
         self.die = 0
+        self.cooldown = cooldown
+        self.cooldown_bullet = 0
+        self.hitbox = [self.rect.centerx - 50, self.rect.centery- 50, 100, 100]
+        self.speed = speed
 
     def update(self):
         self.hitbox = [self.rect.centerx - 50, self.rect.centery- 50, 100, 100]
@@ -165,9 +187,16 @@ class Tank(pygame.sprite.Sprite):
     def hit(self):
         self.health -= 1
 
+    def hit_object(self, object_game):
+        if (object_game.hitbox[0] < self.rect.centerx < object_game.hitbox[0] + object_game.hitbox[2]) and (object_game.hitbox[1] < self.rect.centery < object_game.hitbox[1] + object_game.hitbox[3]):
+            return True
+
+        else:
+            return False
+
 
 class Enemy(pygame.sprite.Sprite):
-    def __init__(self, screen, position, image_path):
+    def __init__(self, screen, position, image_path, speed=1, damage=0.5, bullet_speed=1, cooldown=200):
         pygame.sprite.Sprite.__init__(self)
         self.screen = screen
         self.position = position
@@ -177,6 +206,11 @@ class Enemy(pygame.sprite.Sprite):
         self.angle = 0  # Initial angle
         self.health = 10
         self.rect.center = position
+        self.speed = speed
+        self.damage = damage
+        self.bullet_speed = bullet_speed
+        self.cooldown = cooldown
+        self.cooldown_bullet = 0
 
     def update(self):
         # Create a rotated image
@@ -187,6 +221,7 @@ class Enemy(pygame.sprite.Sprite):
         # pygame.draw.rect(screen, color_dict['gray'], self.hitbox, 2)
         pygame.draw.rect(screen, color_dict['red'], (self.rect.centerx - 50, self.rect.centery - 50, 100, 10))
         pygame.draw.rect(screen, color_dict['navy'], (self.rect.centerx - 50, self.rect.centery - 50, 10 * self.health, 10))
+
     def hit(self):
         self.health -= 1
 
@@ -204,34 +239,37 @@ class Text():
         screen.blit(text_surface, (self.x, self.y))
 
 
-        
+
 # Initialize Pygame
 
 sprites = pygame.sprite.Group()
 
 
 # Create a Joystick instance
-joystick = Joystick(screen, (win_size[0] - 200, 800))
-joystick2 = Joystick(screen, (200, 800))
+joystick = Joystick(screen, (win_size[0] - 300, 700))
+joystick2 = Joystick(screen, (300, 700))
 curr_dir = (os.getcwd())
 
 
 # Create an ImageRotator instance (provide the path to your image)
 tank = Tank(screen, [500, 500], f'{curr_dir}/image_game/blue-tank-0.92.png')
-tank2 = Tank(screen, [500, 500], f'{curr_dir}/image_game/blue-tank-0.92.png')
 enemy = Enemy(screen, [800, 500], f'{curr_dir}/image_game/mothership-0.92.png')
+heal = Object((100, 100), image_path=f'{curr_dir}/image_game/health.png')
+cross = Object((200, 100), image_path=f'{curr_dir}/image_game/cross.png')
 bullets = []
 enemies = []
 enemies_bullets = []
+level = 0
 clock = pygame.time.Clock()
 sprites.add(tank)
-sprites.add(tank2)
+sprites.add(heal, cross)
 
 
 score = 0
 score_text = Text(100, 100, color_dict['brown'], 30)
 die = 0
 clock_count = 0
+cooldown_bullet = 0
 
 
 
@@ -264,8 +302,12 @@ def re_draw_all():
                     sprite.rect.move_ip(0, -1)
         for ene in enemies:
             sprites.add(ene)
+
+        
     else:
         screen.blit()
+
+
 
 
 class Menu:
@@ -302,11 +344,15 @@ class GamePlay():
     def run(self):
         global score
         global clock_count
+        global cooldown_bullet
         while self.running:
-            clock.tick(27)
+            clock.tick(60)
             clock_count += 1
             if clock_count > 60:
                 clock_count = 0
+
+            if tank.cooldown_bullet > 0:
+                tank.cooldown_bullet -= 1
 
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -314,7 +360,7 @@ class GamePlay():
                 joystick.update(event)
                 joystick2.update(event)
 
-            screen.fill((102, 153, 255))  # Clear the screen
+            screen.fill((255, 255, 255))  # Clear the screen
 
             if tank.health == 0:
                 tank.die = 1
@@ -329,18 +375,19 @@ class GamePlay():
             dx2, dy2 = joystick2.position[0] - joystick2.center[0], joystick2.position[1] - joystick2.center[1]
             angle2 = math.atan2(dy2, dx2)
 
-            new_x = 20 * math.cos(angle2)
-            new_y = 20 * math.sin(angle2)
+            new_x = tank.speed * math.cos(angle2)
+            new_y = tank.speed * math.sin(angle2)
             if int(new_x) == 40:
                 new_x = 0 
             if joystick2.moving:
                 tank.rect.centerx += new_x
                 tank.rect.centery += new_y
 
-            if joystick.moving and clock_count % 2 == 0:
+            if joystick.moving and tank.cooldown_bullet == 0:
                 bu = (bullet(x=tank.rect.centerx + 100 * math.cos(tank.angle), y=tank.rect.centery + 100 * math.sin(tank.angle), angle=tank.angle, image_path=f'{curr_dir}/image_game/blue-bullet.png'))
                 bullets.append(bu)
                 sprites.add(bu)
+                tank.cooldown_bullet = tank.cooldown
 
             if len(enemies) == 0:
                 for i in range(2):
@@ -362,13 +409,16 @@ class GamePlay():
                     enemies.append(Enemy(screen, [random_x, random_y], f'{curr_dir}/image_game/mothership-0.92.png'))
 
             for ene in enemies:
+                if ene.cooldown_bullet > 0:
+                    ene.cooldown_bullet -= 1
+
                 
                 dx_ene, dy_ene = ene.rect.centerx - tank.rect.centerx, ene.rect.centery - tank.rect.centery
                 angle3 = math.atan2(dy_ene, dx_ene)
                 ene.angle = angle3
 
-                new_x_ene = 2 * math.cos(angle3)
-                new_y_ene = 2 * math.sin(angle3)
+                new_x_ene = ene.speed * math.cos(angle3)
+                new_y_ene = ene.speed * math.sin(angle3)
                 ene.rect.centerx -= new_x_ene
                 ene.rect.centery -= new_y_ene
                 for b in bullets:
@@ -389,11 +439,11 @@ class GamePlay():
                     score += 1
 
                 #     enemies.append(Enemy(screen, [800, 500], f'{curr_dir}/image_game/mothership-0.92.png'))
-                if clock_count // 60 == 1:
+                if ene.cooldown_bullet == 0:
                     ene_bu = (EnemyBullet(x=ene.rect.centerx + 100 * math.cos(ene.angle), y=ene.rect.centery + 100 * math.sin(ene.angle), angle=ene.angle, image_path=f'{curr_dir}/image_game/trigonship.png'))
                     enemies_bullets.append(ene_bu)
-                    print('append', clock_count // 60)
                     sprites.add(ene_bu)
+                    ene.cooldown_bullet = ene.cooldown
                 for ene_bu in enemies_bullets:
                     if ene_bu.rect.centerx > win_size[0] or ene_bu.rect.centerx < 0 or ene_bu.rect.centery > win_size[1] or ene_bu.rect.centery < 0:
                         enemies_bullets.remove(ene_bu)
@@ -411,7 +461,6 @@ class GamePlay():
                         except Exception:
                             pass
 
-            # print(clock_count // 27)
             re_draw_all()
             
 
