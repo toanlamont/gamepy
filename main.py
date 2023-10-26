@@ -32,7 +32,7 @@ pygame.init()
 # Set up the screen
 # win_size = (screen.get_width(), screen.get_height())
 display_info = pygame.display.Info()
-
+curr_dir = os.getcwd()
 # Get the screen resolution
 screen_width = display_info.current_w
 screen_height = display_info.current_h
@@ -46,6 +46,28 @@ win_size = (screen_width, screen_height)
 screen = pygame.display.set_mode(win_size)
 
 pygame.display.set_caption("Joystick and Rotating Image")
+
+
+class Explosion(pygame.sprite.Sprite):
+    def __init__(self, x, y, scale=(100, 100)):
+        super().__init__()
+        self.frames = [pygame.transform.scale(pygame.image.load(f'{curr_dir}/image_game/explode{i}.png'), scale) for i in range(1, 4)]
+        self.frame_index = 0
+        self.image = self.frames[self.frame_index]
+        self.image.set_colorkey((0, 0, 0, 0))
+        self.rect = self.image.get_rect()
+        self.rect.center = (x, y)
+        self.frame_delay = 10
+
+    def update(self):
+        self.frame_delay -= 1
+        if self.frame_delay <= 0:
+            self.frame_index += 1
+            if self.frame_index < len(self.frames):
+                self.image = self.frames[self.frame_index]
+                self.frame_delay = 5
+            else:
+                self.kill()
 
 
 class bullet(pygame.sprite.Sprite):
@@ -67,11 +89,11 @@ class bullet(pygame.sprite.Sprite):
 
 
 class Object(pygame.sprite.Sprite):
-    def __init__(self, position, image_path):
+    def __init__(self, position, image_path, scale):
         pygame.sprite.Sprite.__init__(self)
         self.position = position
         self.image = pygame.transform.scale(
-            pygame.image.load(image_path), (100, 100)
+            pygame.image.load(image_path), scale
         )
         self.org_img = self.image
         self.rect = self.image.get_rect()
@@ -116,6 +138,7 @@ class Joystick:
         self.moving = False
         self.angle = None
         self.motion = False
+        self.fingers = {}
 
     def draw(self):
         # Draw the joystick background
@@ -129,6 +152,32 @@ class Joystick:
         )
 
     def update(self, event):
+        # if event.type == pygame.MOUSEBUTTONDOWN:
+        #     mouse_x, mouse_y = event.pos
+        #     distance = math.hypot(
+        #         mouse_x - self.position[0], mouse_y - self.position[1]
+        #     )
+        #     if distance <= self.background_radius:
+        #         self.moving = True
+        # elif event.type == pygame.MOUSEMOTION and self.moving:
+        #     self.motion = True
+        #     mouse_x, mouse_y = event.pos
+        #     dx = mouse_x - self.center[0]
+        #     dy = mouse_y - self.center[1]
+        #     distance = math.hypot(dx, dy)
+        #     if distance > self.max_distance:
+        #         angle = math.atan2(dy, dx)
+        #         self.angle = angle
+        #         new_x = self.center[0] + self.max_distance * math.cos(angle)
+        #         new_y = self.center[1] + self.max_distance * math.sin(angle)
+        #     else:
+        #         new_x, new_y = mouse_x, mouse_y
+        #     self.position = (new_x, new_y)
+        # elif event.type == pygame.MOUSEBUTTONUP:
+        #     self.moving = False
+        #     self.motion = False
+        #     self.position = self.center
+
         if event.type == pygame.FINGERDOWN:
             mouse_x, mouse_y = (
                 event.dict["x"] * win_size[0],
@@ -139,63 +188,43 @@ class Joystick:
             )
             if distance <= self.background_radius:
                 self.moving = True
-        elif event.type == pygame.FINGERMOTION and self.moving:
-            self.motion = True
-            mouse_x, mouse_y = (
-                event.dict["x"] * win_size[0],
-                event.dict["y"] * win_size[1],
-            )
+                if len(self.fingers) == 0:
+                    self.fingers[event.dict.get('finger_id')] = (mouse_x, mouse_y)
 
-            dx = mouse_x - self.center[0]
-            dy = mouse_y - self.center[1]
-            distance = math.hypot(dx, dy)
-            if distance > self.max_distance:
-                angle = math.atan2(dy, dx)
-                self.angle = angle
-                new_x = self.center[0] + self.max_distance * math.cos(
-                    angle
+        elif event.type == pygame.FINGERMOTION and self.moving:
+            if event.dict.get('finger_id') == list(self.fingers.keys())[0]:
+                self.motion = True
+                self.fingers[event.dict.get('finger_id')] = (
+                    event.dict["x"] * win_size[0],
+                    event.dict["y"] * win_size[1],
                 )
-                new_y = self.center[1] + self.max_distance * math.sin(
-                    angle
-                )
-            else:
-                new_x, new_y = mouse_x, mouse_y
-            self.position = (new_x, new_y)
+
+                dx = self.fingers[event.dict.get('finger_id')][0] - self.center[0]
+                dy = self.fingers[event.dict.get('finger_id')][1] - self.center[1]
+                distance = math.hypot(dx, dy)
+                if distance > self.max_distance:
+                    angle = math.atan2(dy, dx)
+                    self.angle = angle
+                    new_x = self.center[0] + self.max_distance * math.cos(
+                        angle
+                    )
+                    new_y = self.center[1] + self.max_distance * math.sin(
+                        angle
+                    )
+                else:
+                    new_x, new_y = self.fingers[event.dict.get('finger_id')]
+                self.position = (new_x, new_y)
 
         elif event.type == pygame.FINGERUP:
-            self.moving = False
-            self.motion = False
-            self.position = self.center
-
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            mouse_x, mouse_y = event.pos
-            distance = math.hypot(
-                mouse_x - self.position[0], mouse_y - self.position[1]
-            )
-            if distance <= self.background_radius:
-                self.moving = True
-        elif event.type == pygame.MOUSEMOTION and self.moving:
-            self.motion = True
-            mouse_x, mouse_y = event.pos
-            dx = mouse_x - self.center[0]
-            dy = mouse_y - self.center[1]
-            distance = math.hypot(dx, dy)
-            if distance > self.max_distance:
-                angle = math.atan2(dy, dx)
-                self.angle = angle
-                new_x = self.center[0] + self.max_distance * math.cos(angle)
-                new_y = self.center[1] + self.max_distance * math.sin(angle)
-            else:
-                new_x, new_y = mouse_x, mouse_y
-            self.position = (new_x, new_y)
-        elif event.type == pygame.MOUSEBUTTONUP:
-            self.moving = False
-            self.motion = False
-            self.position = self.center
+            if len(self.fingers) == 1 and list(self.fingers.keys())[0] == event.dict.get('finger_id'):
+                self.fingers.popitem()
+                self.moving = False
+                self.motion = False
+                self.position = self.center
 
 
 class Tank(pygame.sprite.Sprite):
-    def __init__(self, screen, position, image_path, cooldown=60, speed=10):
+    def __init__(self, screen, position, image_path, cooldown=1, speed=10):
         pygame.sprite.Sprite.__init__(self)
 
         self.screen = screen
@@ -216,6 +245,7 @@ class Tank(pygame.sprite.Sprite):
             100,
         ]
         self.speed = speed
+        self.unit = 100 / self.health
 
     def update(self):
         self.hitbox = [
@@ -237,11 +267,11 @@ class Tank(pygame.sprite.Sprite):
         )
         pygame.draw.rect(
             screen,
-            color_dict["navy"],
+            color_dict["blue"],
             (
                 self.rect.centerx - 50,
                 self.rect.centery - 50,
-                10 * self.health,
+                self.unit * self.health,
                 10,
             ),
         )
@@ -250,6 +280,7 @@ class Tank(pygame.sprite.Sprite):
         self.health -= 1
 
     def hit_object(self, object_game):
+        self.unit = 100 / self.health
         if (
             abs(self.rect.centerx - object_game.rect.centerx) < 100
             and abs(self.rect.centery - object_game.rect.centery) < 100
@@ -270,50 +301,56 @@ class Enemy(pygame.sprite.Sprite):
         damage=0.5,
         bullet_speed=1,
         cooldown=200,
+        scale=(100, 100),
+        health=10
     ):
         pygame.sprite.Sprite.__init__(self)
         self.screen = screen
         self.position = position
         self.image = pygame.transform.scale(
-            pygame.image.load(image_path), (100, 100)
+            pygame.image.load(image_path), scale
         )
         self.org_img = self.image
         self.rect = self.image.get_rect()
         self.angle = 0  # Initial angle
-        self.health = 10
+        self.health = health
         self.rect.center = position
         self.speed = speed
         self.damage = damage
         self.bullet_speed = bullet_speed
+        if cooldown <= 1:
+            cooldown = 1
         self.cooldown = cooldown
         self.cooldown_bullet = 0
+        self.scale = scale
+        self.unit = self.scale[0] / self.health
 
     def update(self):
         # Create a rotated image
         self.hitbox = [
-            self.rect.centerx - 50,
-            self.rect.centery - 50,
-            100,
-            100,
+            self.rect.centerx - self.scale[0] / 2,
+            self.rect.centery - self.scale[1] / 2,
+            self.scale[0],
+            self.scale[1],
         ]
         self.image = pygame.transform.rotate(
             self.org_img, -math.degrees(self.angle)
         )
         self.image.set_colorkey((0, 0, 0, 0))
         self.rect = self.image.get_rect(center=self.rect.center)
-        # pygame.draw.rect(screen, color_dict['gray'], self.hitbox, 2)
+        pygame.draw.rect(screen, color_dict['gray'], self.hitbox, 2)
         pygame.draw.rect(
             screen,
             color_dict["red"],
-            (self.rect.centerx - 50, self.rect.centery - 50, 100, 10),
+            (self.rect.centerx - self.scale[0] / 2, self.rect.centery - self.scale[1] / 2, self.scale[0], 10),
         )
         pygame.draw.rect(
             screen,
-            color_dict["navy"],
+            color_dict["brown"],
             (
-                self.rect.centerx - 50,
-                self.rect.centery - 50,
-                10 * self.health,
+                self.rect.centerx - self.scale[0] / 2,
+                self.rect.centery - self.scale[1] / 2,
+                self.health * self.unit,
                 10,
             ),
         )
@@ -414,56 +451,65 @@ class GamePlay:
             f"{self.curr_dir}/image_game/mothership-0.92.png",
         )
         self.heal = Object(
-            (100, 100), image_path=f"{self.curr_dir}/image_game/health.png"
+            (100, 100), image_path=f"{self.curr_dir}/image_game/health.png", scale=(100, 100)
         )
         self.cross = Object(
-            (200, 100), image_path=f"{self.curr_dir}/image_game/cross.png"
+            (200, 100), image_path=f"{self.curr_dir}/image_game/cross.png", scale=(50, 50)
         )
         self.bullets = []
         self.enemies = []
+        self.boss = []
         self.enemies_bullets = []
-        self.level = 0
+        self.level = 1
         self.clock = pygame.time.Clock()
         self.sprites.add(self.tank)
         # self.sprites.add(heal, cross)
 
-        self.score = 0
+        self.score = 1
         self.score_text = Text(100, 100, color_dict["brown"], 30)
+        self.level_text = Text(100, 150, color_dict["brown"], 30)
+
         self.die = 0
         self.clock_count = 0
         self.cooldown_bullet = 0
-        self.cooldown_health = 100
+        self.cooldown_health = 500
         self.cooldown_shot = 100
         self.healths = []
-        self.shots = []
+        self.crosss = []
+
 
     def re_draw_all(self):
+        
         if not self.die:
             self.joystick.draw()
             self.joystick2.draw()
             self.sprites.update()
             self.sprites.draw(screen)
             self.score_text.draw(f"Scores: {self.score}")
+            self.level_text.draw(f"Level: {self.level}")
+
 
             if self.tank.rect.centerx < 100:
+                a = 100 - self.tank.rect.centerx
                 for sprite in self.sprites:
-                    for i in range(30):
-                        sprite.rect.move_ip(1, 0)
+                    
+                    sprite.rect.move_ip(a, 0)
 
             elif self.tank.rect.centerx > win_size[0] - 100:
+                a = win_size[0] - 100 - self.tank.rect.centerx
                 for sprite in self.sprites:
-                    for i in range(30):
-                        sprite.rect.move_ip(-1, 0)
+                    sprite.rect.move_ip(a, 0)
 
             if self.tank.rect.centery < 100:
+                a = 100 - self.tank.rect.centery
                 for sprite in self.sprites:
-                    for i in range(30):
-                        sprite.rect.move_ip(0, 1)
+
+                    sprite.rect.move_ip(0, a)
 
             elif self.tank.rect.centery > win_size[1] - 100:
+                a = win_size[1] - 100 - self.tank.rect.centery
                 for sprite in self.sprites:
-                    for i in range(30):
-                        sprite.rect.move_ip(0, -1)
+                    sprite.rect.move_ip(0, a)
             for ene in self.enemies:
                 self.sprites.add(ene)
 
@@ -485,7 +531,7 @@ class GamePlay:
                 self.joystick.update(event)
                 self.joystick2.update(event)
 
-            screen.fill((255, 255, 255))  # Clear the screen
+            screen.fill((0, 0, 0))  # Clear the screen
 
             if self.tank.health <= 0:
                 self.tank.die = 1
@@ -503,16 +549,32 @@ class GamePlay:
                         random.randrange(1, win_size[1]),
                     ),
                     image_path=f"{self.curr_dir}/image_game/health.png",
+                    scale=(100, 100)
+                )
+                cross = Object(
+                    position=(
+                        random.randrange(1, win_size[0]),
+                        random.randrange(1, win_size[1]),
+                    ),
+                    image_path=f"{self.curr_dir}/image_game/cross.png",
+                    scale=(50, 50)
                 )
                 self.sprites.add(health)
                 self.healths.append(health)
-                self.cooldown_health = 100
+                self.sprites.add(cross)
+                self.crosss.append(cross)
+                self.cooldown_health = 500
 
             for health in self.healths:
                 if self.tank.hit_object(health):
                     self.tank.health += 1
                     self.healths.remove(health)
                     self.sprites.remove(health)
+
+            for cross in self.crosss:
+                if self.tank.hit_object(cross):
+                    self.crosss.remove(cross)
+                    self.sprites.remove(cross)
 
             # Update the angle of the rotating image based on self.joystick position
             dx, dy = (
@@ -549,7 +611,66 @@ class GamePlay:
                 self.tank.cooldown_bullet = self.tank.cooldown
 
             if len(self.enemies) == 0:
-                for i in range(2):
+                print(self.level)
+   
+                if self.score < self.level * 10:
+                    for i in range(2):
+                        if (
+                            self.tank.rect.centerx - 300 > 0
+                            and self.tank.rect.centerx + 300 < win_size[0]
+                        ):
+                            random_x = random.choice(
+                                (
+                                    random.randrange(
+                                        0, self.tank.rect.centerx - 300
+                                    ),
+                                    random.randrange(
+                                        self.tank.rect.centerx + 300, win_size[0]
+                                    ),
+                                )
+                            )
+                        elif self.tank.rect.centerx - 300 < 0:
+                            random_x = random.randrange(
+                                random.randrange(
+                                    self.tank.rect.centerx + 300, win_size[0]
+                                )
+                            )
+                        elif self.tank.rect.centerx + 300 > win_size[0]:
+                            random_x = random.randrange(
+                                0, random.randrange(self.tank.rect.centerx - 300)
+                            )
+
+                        if (
+                            self.tank.rect.centery - 300 > 0
+                            and self.tank.rect.centery + 300 < win_size[1]
+                        ):
+                            random_y = random.choice(
+                                (
+                                    random.randrange(
+                                        0, self.tank.rect.centery - 300
+                                    ),
+                                    random.randrange(
+                                        self.tank.rect.centery + 300, win_size[1]
+                                    ),
+                                )
+                            )
+                        elif self.tank.rect.centery - 300 < 0:
+                            random_y = random.randrange(
+                                random.randrange(
+                                    self.tank.rect.centery + 300, win_size[1]
+                                )
+                            )
+                        elif self.tank.rect.centery + 300 > win_size[1]:
+                            random_y = random.randrange(
+                                0, random.randrange(self.tank.rect.centery - 300)
+                            )
+
+                        self.enemies.append(
+                            Enemy(screen, [random_x, random_y], f"{self.curr_dir}/image_game/mothership-0.92.png", health=self.level, cooldown=(200 - self.level * 10), speed=(1 + self.level * 0.5))
+                        )
+
+                elif self.score >= self.level * 10:
+
                     if (
                         self.tank.rect.centerx - 300 > 0
                         and self.tank.rect.centerx + 300 < win_size[0]
@@ -600,13 +721,14 @@ class GamePlay:
                             0, random.randrange(self.tank.rect.centery - 300)
                         )
 
-                    self.enemies.append(
-                        Enemy(
-                            screen,
-                            [random_x, random_y],
-                            f"{self.curr_dir}/image_game/mothership-0.92.png",
-                        )
-                    )
+                    boss = Enemy(screen, [random_x, random_y], f"{self.curr_dir}/image_game/mothership-0.92.png", scale=(200, 200), health=2 * self.level * 10, cooldown=(200 - self.level * 10), speed=(1 + self.level * 0.2))
+                    self.enemies.append(boss)
+                    self.level += 1
+
+
+                
+
+
 
             for ene in self.enemies:
                 if ene.cooldown_bullet > 0:
@@ -614,8 +736,7 @@ class GamePlay:
 
                 if self.tank.hit_object(ene):
                     self.tank.health -= 5
-                    self.sprites.remove(ene)
-                    self.enemies.remove(ene)
+                    ene.health -= 10
 
                 dx_ene, dy_ene = (
                     ene.rect.centerx - self.tank.rect.centerx,
@@ -626,9 +747,8 @@ class GamePlay:
 
                 new_x_ene = ene.speed * math.cos(angle3)
                 new_y_ene = ene.speed * math.sin(angle3)
-                print(new_x_ene, new_y_ene)
-                ene.rect.centerx -= new_x_ene
-                ene.rect.centery -= new_y_ene
+                ene.rect.centerx = ene.rect.centerx - round(new_x_ene)
+                ene.rect.centery = ene.rect.centery - round(new_y_ene)
                 for b in self.bullets:
                     try:
                         if (
@@ -643,7 +763,7 @@ class GamePlay:
                             b.rect.centerx > ene.hitbox[0]
                             and b.rect.centerx < ene.hitbox[2] + ene.hitbox[0]
                             and b.rect.centery > ene.hitbox[1]
-                            and b.rect.centery < ene.hitbox[1] + 100
+                            and b.rect.centery < ene.hitbox[1] + ene.hitbox[3]
                             and len(self.enemies) != 0
                         ):
                             ene.hit()
@@ -653,11 +773,12 @@ class GamePlay:
                         continue
 
                 if ene.health < 0:
+                    self.sprites.add(Explosion(ene.rect.centerx, ene.rect.centery, ene.scale))
+
                     self.enemies.remove(ene)
                     self.sprites.remove(ene)
                     self.score += 1
 
-                #     enemies.append(Enemy(screen, [800, 500], f'{self.curr_dir}/image_game/mothership-0.92.png'))
                 if ene.cooldown_bullet == 0:
                     ene_bu = EnemyBullet(
                         x=ene.rect.centerx + 100 * math.cos(ene.angle),
@@ -720,8 +841,19 @@ class App:
                 gameplay.sprites.add(gameplay.tank)
                 gameplay.joystick.moving = False
                 gameplay.joystick2.moving = False
+                gameplay.joystick.fingers = {}
+                gameplay.joystick2.fingers = {}
                 gameplay.joystick.position = gameplay.joystick.center
                 gameplay.joystick2.position = gameplay.joystick2.center
+                for e in gameplay.enemies:
+                    gameplay.sprites.remove(e)
+
+                for b in gameplay.enemies_bullets:
+                    gameplay.sprites.remove(b)
+
+                gameplay.enemies = []
+                gameplay.enemies_bullets = []
+
 
                 print(gameplay.__dict__)
                 pl = gameplay.run()

@@ -1,74 +1,69 @@
 import pygame
+import sys
 
-class Menu:
-    def __init__(self, screen):
-        self.screen = screen
-        self.background = pygame.Surface(screen.get_size())
-        self.background.fill((255, 255, 255))
-        self.font = pygame.font.Font(None, 36)
-        self.text = self.font.render("Menu", True, (0, 0, 0))
-        self.textpos = self.text.get_rect(centerx=self.background.get_width()/2,
-                                          centery=self.background.get_height()/2)
+pygame.init()
 
-    def run(self):
-        while True:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    return "quit"
-                elif event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_ESCAPE:
-                        return "quit"
-                    elif event.key == pygame.K_SPACE:
-                        return "game"
+# Constants
+SCREEN_WIDTH = 800
+SCREEN_HEIGHT = 600
+WHITE = (255, 255, 255)
 
-            self.screen.blit(self.background, (0, 0))
-            self.screen.blit(self.text, self.textpos)
-            pygame.display.flip()
+# Create the screen
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+pygame.display.set_caption("Explosion Animation Example")
 
-class Game:
-    def __init__(self, screen):
-        self.screen = screen
-        self.background = pygame.Surface(screen.get_size())
-        self.background.fill((0, 0, 255))
-        self.font = pygame.font.Font(None, 36)
-        self.text = self.font.render("Game", True, (255, 255, 255))
-        self.textpos = self.text.get_rect(centerx=self.background.get_width()/2,
-                                          centery=self.background.get_height()/2)
+# Load explosion frames (replace with your own images)
+frame1 = pygame.transform.scale(pygame.image.load('image_game/explode1.png'), (50, 50))
+frame2 = pygame.transform.scale(pygame.image.load('image_game/explode2.png'), (50, 50))
+frame3 = pygame.transform.scale(pygame.image.load('image_game/explode3.png'), (50, 50))
+frame4 = pygame.transform.scale(pygame.image.load('image_game/explode4.png'), (50, 50))
 
-    def run(self):
-        while True:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    return "quit"
-                elif event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_ESCAPE:
-                        return "quit"
-                    elif event.key == pygame.K_SPACE:
-                        return "menu"
 
-            self.screen.blit(self.background, (0, 0))
-            self.screen.blit(self.text, self.textpos)
-            pygame.display.flip()
+explosion_frames = [frame1, frame2, frame3, frame4]
 
-class App:
-    def __init__(self):
-        pygame.init()
-        self.screen = pygame.display.set_mode((640, 480))
+# Create an Explosion class
+class Explosion(pygame.sprite.Sprite):
+    def __init__(self, frames, x, y):
+        super().__init__()
+        self.frames = frames
+        self.frame_index = 0
+        self.image = self.frames[self.frame_index]
+        self.rect = self.image.get_rect()
+        self.rect.center = (x, y)
+        self.frame_delay = 10
 
-    def run(self):
-        while True:
-            menu = Menu(self.screen)
-            status_menu = menu.run()
-            if status_menu == "quit":
-                pygame.quit()
-                break
+    def update(self):
+        self.frame_delay -= 1
+        if self.frame_delay <= 0:
+            self.frame_index += 1
+            if self.frame_index < len(self.frames):
+                self.image = self.frames[self.frame_index]
+                self.frame_delay = 5
+            else:
+                self.kill()
 
-            game = Game(self.screen)
-            status_game = game.run()
-            if status_game == "quit":
-                pygame.quit()
-                break
+explosions = pygame.sprite.Group()
+clock = pygame.time.Clock()
+running = True
 
-if __name__ == "__main__":
-    app = App()
-    app.run()
+while running:
+    clock.tick(60)
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+
+    keys = pygame.key.get_pressed()
+    if keys[pygame.K_SPACE]:
+        explosion = Explosion(explosion_frames, 100, 100)
+        explosions.add(explosion)
+
+    screen.fill(WHITE)
+
+    explosions.update()
+    explosions.draw(screen)
+
+    pygame.display.flip()
+
+# Quit Pygame
+pygame.quit()
+sys.exit()
