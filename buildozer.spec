@@ -29,7 +29,7 @@ version = 1.0
 # version.filename = %(source.dir)s/main.py
 
 # (list) Application requirements
-requirements = kivy,pygame,pyjnius
+requirements = kivy,pygame,pyjnius,requests
 
 # (str) Supported orientations (landscape, portrait or all)
 orientation = landscape

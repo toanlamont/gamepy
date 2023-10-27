@@ -3,6 +3,7 @@ import random
 import sys
 import math
 import os
+import requests
 
 
 color_dict = {
@@ -152,31 +153,31 @@ class Joystick:
         )
 
     def update(self, event):
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            mouse_x, mouse_y = event.pos
-            distance = math.hypot(
-                mouse_x - self.position[0], mouse_y - self.position[1]
-            )
-            if distance <= self.background_radius:
-                self.moving = True
-        elif event.type == pygame.MOUSEMOTION and self.moving:
-            self.motion = True
-            mouse_x, mouse_y = event.pos
-            dx = mouse_x - self.center[0]
-            dy = mouse_y - self.center[1]
-            distance = math.hypot(dx, dy)
-            if distance > self.max_distance:
-                angle = math.atan2(dy, dx)
-                self.angle = angle
-                new_x = self.center[0] + self.max_distance * math.cos(angle)
-                new_y = self.center[1] + self.max_distance * math.sin(angle)
-            else:
-                new_x, new_y = mouse_x, mouse_y
-            self.position = (new_x, new_y)
-        elif event.type == pygame.MOUSEBUTTONUP:
-            self.moving = False
-            self.motion = False
-            self.position = self.center
+        # if event.type == pygame.MOUSEBUTTONDOWN:
+        #     mouse_x, mouse_y = event.pos
+        #     distance = math.hypot(
+        #         mouse_x - self.position[0], mouse_y - self.position[1]
+        #     )
+        #     if distance <= self.background_radius:
+        #         self.moving = True
+        # elif event.type == pygame.MOUSEMOTION and self.moving:
+        #     self.motion = True
+        #     mouse_x, mouse_y = event.pos
+        #     dx = mouse_x - self.center[0]
+        #     dy = mouse_y - self.center[1]
+        #     distance = math.hypot(dx, dy)
+        #     if distance > self.max_distance:
+        #         angle = math.atan2(dy, dx)
+        #         self.angle = angle
+        #         new_x = self.center[0] + self.max_distance * math.cos(angle)
+        #         new_y = self.center[1] + self.max_distance * math.sin(angle)
+        #     else:
+        #         new_x, new_y = mouse_x, mouse_y
+        #     self.position = (new_x, new_y)
+        # elif event.type == pygame.MOUSEBUTTONUP:
+        #     self.moving = False
+        #     self.motion = False
+        #     self.position = self.center
 
         if event.type == pygame.FINGERDOWN:
             mouse_x, mouse_y = (
@@ -224,7 +225,7 @@ class Joystick:
 
 
 class Tank(pygame.sprite.Sprite):
-    def __init__(self, screen, position, image_path, cooldown=60, speed=10):
+    def __init__(self, screen, position, image_path, cooldown=60, speed=10, damage=1):
         pygame.sprite.Sprite.__init__(self)
 
         self.screen = screen
@@ -246,9 +247,9 @@ class Tank(pygame.sprite.Sprite):
         ]
         self.speed = speed
         self.unit = 100 / self.health
+        self.damage = damage
 
     def update(self):
-        print(self.unit, self.health)
         self.hitbox = [
             self.rect.centerx - 50,
             self.rect.centery - 50,
@@ -355,8 +356,8 @@ class Enemy(pygame.sprite.Sprite):
             ),
         )
 
-    def hit(self):
-        self.health -= 1
+    def hit(self, damage):
+        self.health -= damage
 
 
 class Text:
@@ -379,9 +380,6 @@ class Text:
         screen.blit(text_surface, (self.x, self.y))
 
 
-# Initialize Pygame
-
-
 class Menu:
     def __init__(self, screen):
         self.screen = screen
@@ -395,7 +393,9 @@ class Menu:
         )
         self.continue_game = Text(500, 500, "red", 50)
 
-        self.high_score = Text(100, 100, "black", 50)
+        self.high_score = Text(500, 450, "black", 50)
+        self.save = Text(500, 550, "black", 50)
+
 
     def run(self):
         while True:
@@ -409,7 +409,7 @@ class Menu:
                         return "game"
                 if event.type == pygame.MOUSEMOTION:
                     mouse_x, mouse_y = event.pos
-                    for t in [self.high_score, self.continue_game]:
+                    for t in [self.high_score, self.continue_game, self.save]:
                         if (t.x < mouse_x < t.x + 200) and (t.y < mouse_y < t.y + 50):
                             t.hightlight = True
                         else:
@@ -417,16 +417,92 @@ class Menu:
 
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     mouse_x, mouse_y = event.pos
-                    for t in [self.high_score, self.continue_game]:
+                    for t in [self.high_score, self.continue_game, self.save]:
                         if (t.x < mouse_x < t.x + 200) and (t.y < mouse_y < t.y + 50):
                             if t == self.continue_game:
                                 return "game"
+
+                            elif t == self.high_score:
+                                return 'high_score'
 
             self.screen.blit(self.background, (0, 0))
             self.high_score.draw("High score", self.high_score.hightlight)
             self.continue_game.draw(
                 "Continue game", self.continue_game.hightlight
             )
+            self.save.draw(
+                "Save game", self.save.hightlight
+            )
+
+            pygame.display.flip()
+
+
+class HighScore():
+    def __init__(self, screen):
+        self.screen = screen
+        self.background = pygame.Surface(screen.get_size())
+        self.background.fill((255, 255, 255))
+        self.font = pygame.font.Font(None, 36)
+        self.text = self.font.render("Menu", True, (0, 0, 0))
+        self.textpos = self.text.get_rect(
+            centerx=self.background.get_width() / 2,
+            centery=self.background.get_height() / 2,
+        )
+        self.continue_game = Text(500, 500, "red", 50)
+
+        self.back = Text(500, 450, "red", 50)
+        self.list_text = [
+            {'name': 'game', 'object': self.continue_game},
+            {'name': 'menu', 'object': self.back}
+            ]
+        content = requests.get("http://103.69.194.153/game/high_score/").json()
+        self.high_list = content
+ 
+
+    def draw_score_list(self):
+        index = 0
+        start_y = 550
+        for i in self.high_list:
+            index += 1
+            start_y += 50
+            t = Text(500, start_y, 'red', 50)
+            t.draw(f'{index}. {i["username"]}: {i["score"]}')
+
+
+
+    def run(self):
+        while True:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    return "quit"
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        return "quit"
+                    elif event.key == pygame.K_SPACE:
+                        return "game"
+                if event.type == pygame.MOUSEMOTION:
+                    mouse_x, mouse_y = event.pos
+                    for t in self.list_text:
+                        if (t['object'].x < mouse_x < t['object'].x + 200) and (t['object'].y < mouse_y < t['object'].y + 50):
+                            t['object'].hightlight = True
+                        else:
+                            t['object'].hightlight = False
+
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    mouse_x, mouse_y = event.pos
+                    for t in self.list_text:
+                        if (t['object'].x < mouse_x < t['object'].x + 200) and (t['object'].y < mouse_y < t['object'].y + 50):
+                            return t['name']
+
+            self.screen.blit(self.background, (0, 0))
+
+            self.continue_game.draw(
+                "Continue game", self.continue_game.hightlight
+            )
+            self.back.draw(
+                "Back", self.back.hightlight
+            )
+            self.draw_score_list()
 
             pygame.display.flip()
 
@@ -516,7 +592,6 @@ class GamePlay:
             screen.blit()
 
     def run(self):
-        print("running")
         while self.running:
             self.clock.tick(60)
 
@@ -535,7 +610,6 @@ class GamePlay:
             if self.tank.health <= 0:
                 self.tank.die = 1
                 self.sprites.remove(self.tank)
-                print("die")
                 return "menu"
 
             if self.cooldown_health > 0:
@@ -575,6 +649,11 @@ class GamePlay:
             for cross in self.crosss:
                 if self.tank.hit_object(cross):
                     self.crosss.remove(cross)
+                    if self.tank.cooldown > 1:
+                        self.tank.cooldown -= 1
+
+                    else:
+                        self.tank.damage += 1
                     self.sprites.remove(cross)
 
             # Update the angle of the rotating image based on self.joystick position
@@ -612,7 +691,6 @@ class GamePlay:
                 self.tank.cooldown_bullet = self.tank.cooldown
 
             if len(self.enemies) == 0:
-                print(self.level)
    
                 if self.score < self.level * 10:
                     for i in range(2):
@@ -722,7 +800,7 @@ class GamePlay:
                             0, random.randrange(self.tank.rect.centery - 300)
                         )
 
-                    boss = Enemy(screen, [random_x, random_y], f"{self.curr_dir}/image_game/mothership-0.92.png", scale=(200, 200), health=2 * self.level * 10, cooldown=(200 - self.level * 10), speed=(1 + self.level * 0.2))
+                    boss = Enemy(screen, [random_x, random_y], f"{self.curr_dir}/image_game/mothership-0.92.png", scale=(200, 200), health=2 * self.level * 10, cooldown=(200 - self.level * 10), speed=(1 + self.level * 0.5))
                     self.enemies.append(boss)
                     self.level += 1
 
@@ -767,7 +845,7 @@ class GamePlay:
                             and b.rect.centery < ene.hitbox[1] + ene.hitbox[3]
                             and len(self.enemies) != 0
                         ):
-                            ene.hit()
+                            ene.hit(self.tank.damage)
                             self.bullets.remove(b)
                             self.sprites.remove(b)
                     except Exception:
@@ -834,6 +912,7 @@ class App:
     def run(self):
         menuplay = Menu(screen=screen)
         gameplay = GamePlay()
+        high_score = HighScore(screen=screen)
 
         pl = menuplay.run()
         while pl:
@@ -855,11 +934,12 @@ class App:
                 gameplay.enemies = []
                 gameplay.enemies_bullets = []
 
-
-                print(gameplay.__dict__)
                 pl = gameplay.run()
             if pl == "menu":
                 pl = menuplay.run()
+
+            if pl == 'high_score':
+                pl = high_score.run()
             if pl == "quit":
                 break
 
