@@ -152,31 +152,31 @@ class Joystick:
         )
 
     def update(self, event):
-        # if event.type == pygame.MOUSEBUTTONDOWN:
-        #     mouse_x, mouse_y = event.pos
-        #     distance = math.hypot(
-        #         mouse_x - self.position[0], mouse_y - self.position[1]
-        #     )
-        #     if distance <= self.background_radius:
-        #         self.moving = True
-        # elif event.type == pygame.MOUSEMOTION and self.moving:
-        #     self.motion = True
-        #     mouse_x, mouse_y = event.pos
-        #     dx = mouse_x - self.center[0]
-        #     dy = mouse_y - self.center[1]
-        #     distance = math.hypot(dx, dy)
-        #     if distance > self.max_distance:
-        #         angle = math.atan2(dy, dx)
-        #         self.angle = angle
-        #         new_x = self.center[0] + self.max_distance * math.cos(angle)
-        #         new_y = self.center[1] + self.max_distance * math.sin(angle)
-        #     else:
-        #         new_x, new_y = mouse_x, mouse_y
-        #     self.position = (new_x, new_y)
-        # elif event.type == pygame.MOUSEBUTTONUP:
-        #     self.moving = False
-        #     self.motion = False
-        #     self.position = self.center
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            mouse_x, mouse_y = event.pos
+            distance = math.hypot(
+                mouse_x - self.position[0], mouse_y - self.position[1]
+            )
+            if distance <= self.background_radius:
+                self.moving = True
+        elif event.type == pygame.MOUSEMOTION and self.moving:
+            self.motion = True
+            mouse_x, mouse_y = event.pos
+            dx = mouse_x - self.center[0]
+            dy = mouse_y - self.center[1]
+            distance = math.hypot(dx, dy)
+            if distance > self.max_distance:
+                angle = math.atan2(dy, dx)
+                self.angle = angle
+                new_x = self.center[0] + self.max_distance * math.cos(angle)
+                new_y = self.center[1] + self.max_distance * math.sin(angle)
+            else:
+                new_x, new_y = mouse_x, mouse_y
+            self.position = (new_x, new_y)
+        elif event.type == pygame.MOUSEBUTTONUP:
+            self.moving = False
+            self.motion = False
+            self.position = self.center
 
         if event.type == pygame.FINGERDOWN:
             mouse_x, mouse_y = (
@@ -224,7 +224,7 @@ class Joystick:
 
 
 class Tank(pygame.sprite.Sprite):
-    def __init__(self, screen, position, image_path, cooldown=1, speed=10):
+    def __init__(self, screen, position, image_path, cooldown=60, speed=10):
         pygame.sprite.Sprite.__init__(self)
 
         self.screen = screen
@@ -248,6 +248,7 @@ class Tank(pygame.sprite.Sprite):
         self.unit = 100 / self.health
 
     def update(self):
+        print(self.unit, self.health)
         self.hitbox = [
             self.rect.centerx - 50,
             self.rect.centery - 50,
@@ -280,7 +281,6 @@ class Tank(pygame.sprite.Sprite):
         self.health -= 1
 
     def hit_object(self, object_game):
-        self.unit = 100 / self.health
         if (
             abs(self.rect.centerx - object_game.rect.centerx) < 100
             and abs(self.rect.centery - object_game.rect.centery) < 100
@@ -479,7 +479,6 @@ class GamePlay:
 
 
     def re_draw_all(self):
-        
         if not self.die:
             self.joystick.draw()
             self.joystick2.draw()
@@ -542,7 +541,7 @@ class GamePlay:
             if self.cooldown_health > 0:
                 self.cooldown_health -= 1
 
-            if self.cooldown_health == 0 and len(self.healths) == 0:
+            if self.cooldown_health == 0 and len(self.healths) <= 10:
                 health = Object(
                     position=(
                         random.randrange(1, win_size[0]),
@@ -568,8 +567,10 @@ class GamePlay:
             for health in self.healths:
                 if self.tank.hit_object(health):
                     self.tank.health += 1
+                    self.tank.unit = 100 / self.tank.health if self.tank.health >= 10 else 10
                     self.healths.remove(health)
                     self.sprites.remove(health)
+                    self.cooldown_health = 500
 
             for cross in self.crosss:
                 if self.tank.hit_object(cross):
