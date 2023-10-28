@@ -1,19 +1,19 @@
 [app]
 
 # (str) Title of your application
-title = YourPygameApp
+title = Armored Domination
 
 # (str) Package name
-package.name = yourpygameapp
+package.name = armoreddomination
 
 # (str) Package domain (needed for android/ios packaging)
-package.domain = org.yourdomain
+package.domain = org.armoreddomination
 
 # (str) Source code where the main.py live
 source.dir = .
 
 # (list) List of source files
-source.include_exts = py,png,jpg,kv,atlas
+source.include_exts = py,png,jpg,kv,atlas,webp
 
 # (list) List of inclusions using pattern matching
 #source.include_patterns = assets/*,images/*.png
@@ -40,6 +40,7 @@ orientation = landscape
 # (list) Permissions
 # android.permissions = INTERNET,WRITE_EXTERNAL_STORAGE
 android.permissions = INTERNET
+icon.filename = image_game/blue-tank-0.92.png
 
 [build]
 
