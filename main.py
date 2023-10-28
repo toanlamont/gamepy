@@ -46,7 +46,7 @@ win_size = (screen_width, screen_height)
 #                               pygame.FINGERUP, pygame.FINGERDOWN, pygame.KEYDOWN, pygame.KEYUP])
 screen = pygame.display.set_mode(win_size)
 
-pygame.display.set_caption("Joystick and Rotating Image")
+pygame.display.set_caption("Armored Domination")
 
 
 class Explosion(pygame.sprite.Sprite):
@@ -153,31 +153,31 @@ class Joystick:
         )
 
     def update(self, event):
-        # if event.type == pygame.MOUSEBUTTONDOWN:
-        #     mouse_x, mouse_y = event.pos
-        #     distance = math.hypot(
-        #         mouse_x - self.position[0], mouse_y - self.position[1]
-        #     )
-        #     if distance <= self.background_radius:
-        #         self.moving = True
-        # elif event.type == pygame.MOUSEMOTION and self.moving:
-        #     self.motion = True
-        #     mouse_x, mouse_y = event.pos
-        #     dx = mouse_x - self.center[0]
-        #     dy = mouse_y - self.center[1]
-        #     distance = math.hypot(dx, dy)
-        #     if distance > self.max_distance:
-        #         angle = math.atan2(dy, dx)
-        #         self.angle = angle
-        #         new_x = self.center[0] + self.max_distance * math.cos(angle)
-        #         new_y = self.center[1] + self.max_distance * math.sin(angle)
-        #     else:
-        #         new_x, new_y = mouse_x, mouse_y
-        #     self.position = (new_x, new_y)
-        # elif event.type == pygame.MOUSEBUTTONUP:
-        #     self.moving = False
-        #     self.motion = False
-        #     self.position = self.center
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            mouse_x, mouse_y = event.pos
+            distance = math.hypot(
+                mouse_x - self.position[0], mouse_y - self.position[1]
+            )
+            if distance <= self.background_radius:
+                self.moving = True
+        elif event.type == pygame.MOUSEMOTION and self.moving:
+            self.motion = True
+            mouse_x, mouse_y = event.pos
+            dx = mouse_x - self.center[0]
+            dy = mouse_y - self.center[1]
+            distance = math.hypot(dx, dy)
+            if distance > self.max_distance:
+                angle = math.atan2(dy, dx)
+                self.angle = angle
+                new_x = self.center[0] + self.max_distance * math.cos(angle)
+                new_y = self.center[1] + self.max_distance * math.sin(angle)
+            else:
+                new_x, new_y = mouse_x, mouse_y
+            self.position = (new_x, new_y)
+        elif event.type == pygame.MOUSEBUTTONUP:
+            self.moving = False
+            self.motion = False
+            self.position = self.center
 
         if event.type == pygame.FINGERDOWN:
             mouse_x, mouse_y = (
@@ -321,7 +321,7 @@ class Enemy(pygame.sprite.Sprite):
         self.bullet_speed = bullet_speed
         if cooldown <= 1:
             cooldown = 1
-        self.cooldown = cooldown
+        self.cooldown = cooldown if cooldown > 1 else 1
         self.cooldown_bullet = 0
         self.scale = scale
         self.unit = self.scale[0] / self.health
@@ -381,7 +381,7 @@ class Text:
 
 
 class Menu:
-    def __init__(self, screen):
+    def __init__(self, screen, username='guest'):
         self.screen = screen
         self.background = pygame.Surface(screen.get_size())
         self.background.fill((255, 255, 255))
@@ -394,8 +394,9 @@ class Menu:
         self.continue_game = Text(500, 500, "red", 50)
 
         self.high_score = Text(500, 450, "black", 50)
-        self.save = Text(500, 550, "black", 50)
+        self.new_game = Text(500, 400, "black", 50)
 
+        self.username = username
 
     def run(self):
         while True:
@@ -405,11 +406,9 @@ class Menu:
                 elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
                         return "quit"
-                    elif event.key == pygame.K_SPACE:
-                        return "game"
                 if event.type == pygame.MOUSEMOTION:
                     mouse_x, mouse_y = event.pos
-                    for t in [self.high_score, self.continue_game, self.save]:
+                    for t in [self.high_score, self.continue_game, self.new_game]:
                         if (t.x < mouse_x < t.x + 200) and (t.y < mouse_y < t.y + 50):
                             t.hightlight = True
                         else:
@@ -417,28 +416,29 @@ class Menu:
 
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     mouse_x, mouse_y = event.pos
-                    for t in [self.high_score, self.continue_game, self.save]:
+                    for t in [self.high_score, self.continue_game, self.new_game]:
                         if (t.x < mouse_x < t.x + 200) and (t.y < mouse_y < t.y + 50):
                             if t == self.continue_game:
-                                return "game"
-
+                                return ("continue_server_game", self.username)
                             elif t == self.high_score:
-                                return 'high_score'
+                                return ('high_score', self.username)
+                            elif t == self.new_game:
+                                return ('new_game', self.username)
 
             self.screen.blit(self.background, (0, 0))
             self.high_score.draw("High score", self.high_score.hightlight)
             self.continue_game.draw(
                 "Continue game", self.continue_game.hightlight
             )
-            self.save.draw(
-                "Save game", self.save.hightlight
+            self.new_game.draw(
+                "New game", self.new_game.hightlight
             )
 
             pygame.display.flip()
 
 
 class HighScore():
-    def __init__(self, screen):
+    def __init__(self, screen, username='guest'):
         self.screen = screen
         self.background = pygame.Surface(screen.get_size())
         self.background.fill((255, 255, 255))
@@ -451,9 +451,9 @@ class HighScore():
         self.continue_game = Text(500, 500, "red", 50)
 
         self.back = Text(500, 450, "red", 50)
+        self.username = username
         self.list_text = [
-            {'name': 'game', 'object': self.continue_game},
-            {'name': 'menu', 'object': self.back}
+            {'name': ('menu', self.username), 'object': self.back}
             ]
         content = requests.get("http://103.69.194.153/game/high_score/").json()
         self.high_list = content
@@ -467,6 +467,9 @@ class HighScore():
             start_y += 50
             t = Text(500, start_y, 'red', 50)
             t.draw(f'{index}. {i["username"]}: {i["score"]}')
+            self.back.draw(
+                "Back", self.back.hightlight
+            )
 
 
 
@@ -478,8 +481,6 @@ class HighScore():
                 elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
                         return "quit"
-                    elif event.key == pygame.K_SPACE:
-                        return "game"
                 if event.type == pygame.MOUSEMOTION:
                     mouse_x, mouse_y = event.pos
                     for t in self.list_text:
@@ -496,19 +497,282 @@ class HighScore():
 
             self.screen.blit(self.background, (0, 0))
 
-            self.continue_game.draw(
-                "Continue game", self.continue_game.hightlight
-            )
-            self.back.draw(
-                "Back", self.back.hightlight
-            )
+            
             self.draw_score_list()
 
             pygame.display.flip()
 
 
+class PauseMenu():
+    def __init__(self, screen, username='guest', status={}):
+        self.screen = screen
+        self.background = pygame.Surface(screen.get_size())
+        self.background.fill((255, 255, 255))
+        self.font = pygame.font.Font(None, 36)
+        self.text = self.font.render("Menu", True, (0, 0, 0))
+        self.textpos = self.text.get_rect(
+            centerx=self.background.get_width() / 2,
+            centery=self.background.get_height() / 2,
+        )
+        self.continue_game = Text(500, 500, "red", 100)
+
+        self.back = Text(500, 400, "black", 100)
+        self.save = Text(500, 600, "black", 100)
+
+        self.notice = Text(500, 200, "black", 100)
+        self.notice_message = ''
+
+        self.username = username
+        self.list_text = [
+            {'name': ('menu', self.username), 'object': self.back},
+            {'name': ('game', self.username), 'object': self.continue_game},
+            {'object': self.save},
+            
+            ]
+        self.status = status
+ 
+    def draw(self):
+        self.back.draw(
+            "Main menu", self.back.hightlight
+        )
+        self.continue_game.draw("Continue", self.continue_game.hightlight)
+        self.save.draw("Save game to server", self.save.hightlight)
+        self.notice.draw(self.notice_message)
+
+    def save_game(self, status_game):
+        try:
+            r = requests.put(f'http://103.69.194.153/game/status/{self.username}', json=status_game)
+            if not r.json():
+                raise Exception('Can not put')
+            return True
+        except Exception:
+            return False
+
+
+    def run(self):
+        while True:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    return "quit"
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        return "quit"
+                if event.type == pygame.MOUSEMOTION:
+                    mouse_x, mouse_y = event.pos
+                    for t in self.list_text:
+                        if (t['object'].x < mouse_x < t['object'].x + 200) and (t['object'].y < mouse_y < t['object'].y + 100):
+                            t['object'].hightlight = True
+                        else:
+                            t['object'].hightlight = False
+
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    mouse_x, mouse_y = event.pos
+                    save_bt = self.save
+                    if (save_bt.x < mouse_x < save_bt.x + 200) and (save_bt.y < mouse_y < save_bt.y + 100):
+                        status = self.save_game(self.status)
+                        print(status)
+                        if status:
+                            self.notice_message = 'Save success'
+                        else:
+                            self.notice_message = 'Save Fail'
+
+                    for t in self.list_text[:2]:
+                        if (t['object'].x < mouse_x < t['object'].x + 200) and (t['object'].y < mouse_y < t['object'].y + 100):
+                            print(t)
+                            return t['name']
+
+            self.screen.blit(self.background, (0, 0))
+
+            self.draw()
+
+            pygame.display.flip()
+
+
+class Gameover():
+    def __init__(self, screen, username='guest', status={}):
+        self.screen = screen
+        self.background = pygame.Surface(screen.get_size())
+        self.background.fill((255, 255, 255))
+        self.font = pygame.font.Font(None, 36)
+        self.text = self.font.render("Menu", True, (0, 0, 0))
+        self.textpos = self.text.get_rect(
+            centerx=self.background.get_width() / 2,
+            centery=self.background.get_height() / 2,
+        )
+        self.continue_game = Text(500, 500, "red", 100)
+
+        self.menu = Text(500, 400, "black", 100)
+        self.save = Text(500, 600, "black", 100)
+
+        self.notice = Text(500, 200, "black", 100)
+        self.notice_message = 'Game Over. Do you want to continue game ?'
+
+        self.username = username
+        self.list_text = [
+            {'name': ('menu', self.username), 'object': self.menu},
+            {'name': ('game', self.username), 'object': self.continue_game},
+            
+            ]
+        self.status = status
+ 
+    def draw(self):
+        self.menu.draw(
+            "Main menu", self.menu.hightlight
+        )
+        self.continue_game.draw("Continue", self.continue_game.hightlight)
+        self.notice.draw(self.notice_message)
+
+    def save_game(self, status_game):
+        try:
+            r = requests.put(f'http://103.69.194.153/game/status/{self.username}', json=status_game)
+            if not r.json():
+                raise Exception('Can not put')
+            return True
+        except Exception:
+            return False
+
+
+    def run(self):
+        while True:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    return "quit"
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        return "quit"
+                if event.type == pygame.MOUSEMOTION:
+                    mouse_x, mouse_y = event.pos
+                    for t in self.list_text:
+                        if (t['object'].x < mouse_x < t['object'].x + 200) and (t['object'].y < mouse_y < t['object'].y + 100):
+                            t['object'].hightlight = True
+                        else:
+                            t['object'].hightlight = False
+
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    mouse_x, mouse_y = event.pos
+
+                    for t in self.list_text:
+                        if (t['object'].x < mouse_x < t['object'].x + 200) and (t['object'].y < mouse_y < t['object'].y + 100):
+                            print(t)
+                            return t['name']
+
+            self.screen.blit(self.background, (0, 0))
+
+            self.draw()
+
+            pygame.display.flip()
+
+
+class InputName():
+    def __init__(self, screen):
+        self.screen = screen
+        self.background = pygame.Surface(screen.get_size())
+        self.background.fill((255, 255, 255))
+        self.font = pygame.font.Font(None, 36)
+        self.text = self.font.render("Menu", True, (0, 0, 0))
+        self.textpos = self.text.get_rect(
+            centerx=self.background.get_width() / 2,
+            centery=self.background.get_height() / 2,
+        )
+        self.continue_game = Text(500, 500, "red", 50)
+
+        self.back = Text(500, 450, "red", 50)
+        self.name = ''
+        self.list_bt = []
+        first_line = 'qwertyuiop'
+        second_line = 'asdfghjkl'
+        third_line = 'zxcvbnm'
+        start_x_first_line = 150
+        start_x_second_line = 170
+        start_x_third_line = 190
+
+
+        for char in first_line:
+            start_x_first_line += 100
+            bt = KeyboardButton(start_x_first_line, win_size[1] - 400, 100, 100, char)
+            self.list_bt.append(bt)
+
+        for char in second_line:
+            start_x_second_line += 100
+            bt = KeyboardButton(start_x_second_line, win_size[1] - 300, 100, 100, char)
+            self.list_bt.append(bt)
+
+        for char in third_line:
+            start_x_third_line += 100
+            bt = KeyboardButton(start_x_third_line, win_size[1] - 200, 100, 100, char)
+            self.list_bt.append(bt)
+
+
+        self.enter_bt = KeyboardButton(1000, win_size[1] - 200, 150, 100, 'enter')
+        self.delete_bt = KeyboardButton(1270, win_size[1] - 400, 150, 100, '<x]')
+
+        self.list_bt.append(self.enter_bt)
+        self.list_bt.append(self.delete_bt)
+
+
+
+    def draw(self):
+        t = Text(200, 200, 'black', 50)
+        for bt in self.list_bt:
+            bt.draw()
+        t.draw(f'Type your username:     {self.name}')
+
+
+    def run(self):
+        while True:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    return "quit"
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        return "quit"
+
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    mouse_x, mouse_y = event.pos
+                    for bt in self.list_bt:
+                        if (bt.x < mouse_x < bt.x + bt.width) and (bt.y < mouse_y < bt.y + bt.height):
+                            if bt.key == '<x]' and len(self.name) > 0:
+                                self.name = self.name[:-1]
+
+                            elif bt.key == 'enter' and len(self.name) > 0:
+                                return ('menu', self.name)
+                            elif bt.key not in ['enter', '<x]']:
+                                self.name += bt.key
+
+            self.screen.blit(self.background, (0, 0))
+
+            self.draw()
+
+            pygame.display.flip()
+
+
+class KeyboardButton():
+    def __init__(self, x, y, width, height, key) -> None:
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+        self.key = key
+
+    def draw(self):
+        pygame.draw.rect(screen, color_dict['gray'],(self.x, self.y, self.width, self.height) , 2)
+        a = Text(self.x + 10, self.y, 'black', 50)
+        a.draw(self.key)
+
+
+class PauseButton(Object):
+    def __init__(self, position, image_path, scale, width, height):
+        super().__init__(position, image_path, scale)
+        self.width = width
+        self.height = height
+
+    def draw(self):
+        screen.blit(self.image, self.position)
+
+
+
 class GamePlay:
-    def __init__(self) -> None:
+    def __init__(self, username='guest') -> None:
         self.running = True
         self.joystick = Joystick(screen, (win_size[0] - 300, 700))
         self.joystick2 = Joystick(screen, (300, 700))
@@ -539,7 +803,6 @@ class GamePlay:
         self.level = 1
         self.clock = pygame.time.Clock()
         self.sprites.add(self.tank)
-        # self.sprites.add(heal, cross)
 
         self.score = 1
         self.score_text = Text(100, 100, color_dict["brown"], 30)
@@ -552,6 +815,8 @@ class GamePlay:
         self.cooldown_shot = 100
         self.healths = []
         self.crosss = []
+        self.username = username
+        self.pause_button = PauseButton((win_size[0] - 200, 100), f'{self.curr_dir}/image_game/pause.webp', (100, 100), 100, 100)
 
 
     def re_draw_all(self):
@@ -562,6 +827,7 @@ class GamePlay:
             self.sprites.draw(screen)
             self.score_text.draw(f"Scores: {self.score}")
             self.level_text.draw(f"Level: {self.level}")
+            self.pause_button.draw()
 
 
             if self.tank.rect.centerx < 100:
@@ -602,6 +868,10 @@ class GamePlay:
                 if event.type == pygame.QUIT:
                     self.running = False
                     return "quit"
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    mouse_x, mouse_y = event.pos
+                    if (self.pause_button.position[0] < mouse_x < self.pause_button.position[0] + self.pause_button.width) and (self.pause_button.position[1] < mouse_y < self.pause_button.position[1] + self.pause_button.height):
+                        return ('pause_menu', self.username)
                 self.joystick.update(event)
                 self.joystick2.update(event)
 
@@ -610,7 +880,7 @@ class GamePlay:
             if self.tank.health <= 0:
                 self.tank.die = 1
                 self.sprites.remove(self.tank)
-                return "menu"
+                return ("gameover", self.username)
 
             if self.cooldown_health > 0:
                 self.cooldown_health -= 1
@@ -913,10 +1183,14 @@ class App:
         menuplay = Menu(screen=screen)
         gameplay = GamePlay()
         high_score = HighScore(screen=screen)
+        input_name = InputName(screen=screen)
+        pause_menu = PauseMenu(screen=screen)
+        game_over = Gameover(screen=screen)
 
-        pl = menuplay.run()
+
+        pl = input_name.run()
         while pl:
-            if pl == "game":
+            if pl[0] == "game":
                 gameplay.tank.health = 10
                 gameplay.sprites.add(gameplay.tank)
                 gameplay.joystick.moving = False
@@ -925,6 +1199,7 @@ class App:
                 gameplay.joystick2.fingers = {}
                 gameplay.joystick.position = gameplay.joystick.center
                 gameplay.joystick2.position = gameplay.joystick2.center
+                gameplay.username = pl[1]
                 for e in gameplay.enemies:
                     gameplay.sprites.remove(e)
 
@@ -935,11 +1210,93 @@ class App:
                 gameplay.enemies_bullets = []
 
                 pl = gameplay.run()
-            if pl == "menu":
+            if pl[0] == "menu":
+                menuplay.username = pl[1]
                 pl = menuplay.run()
 
-            if pl == 'high_score':
+            if pl[0] == 'high_score':
+                high_score.username = pl[1]
                 pl = high_score.run()
+
+            if pl[0] == 'gameover':
+                game_over.username = pl[1]
+                pl = game_over.run()
+
+            if pl[0] == 'pause_menu':
+                pause_menu.username = pl[1]
+                pause_menu.status = {
+                    'score': gameplay.score,
+                    'level': gameplay.level,
+                    'tank_cooldown': gameplay.tank.cooldown,
+                    'tank_health': gameplay.tank.health
+                }
+                pl = pause_menu.run()
+
+            if pl[0] == "new_game":
+                gameplay.tank.health = 10
+                gameplay.sprites.add(gameplay.tank)
+                gameplay.joystick.motion = False
+                gameplay.joystick2.motion = False
+                gameplay.joystick.fingers = {}
+                gameplay.joystick2.fingers = {}
+                gameplay.joystick.position = gameplay.joystick.center
+                gameplay.joystick2.position = gameplay.joystick2.center
+                gameplay.username = pl[1]
+                gameplay.score = 1
+                gameplay.level = 1
+                gameplay.tank.cooldown = 60
+                gameplay.tank.health = 10
+                for e in gameplay.enemies:
+                    gameplay.sprites.remove(e)
+
+                for b in gameplay.enemies_bullets:
+                    gameplay.sprites.remove(b)
+
+                gameplay.enemies = []
+                gameplay.enemies_bullets = []
+
+                pl = gameplay.run()
+
+            if pl[0] == "continue_server_game":
+                try:
+                    r = requests.get(f'http://103.69.194.153/game/status/{pl[1]}', timeout=3)
+                    print(r, r.json())
+                    if r.json():
+                        gameplay.tank.health = r.json().get('tank_health', 10)
+                        gameplay.score = r.json().get('score', 1)
+                        gameplay.level = r.json().get('level', 1)
+                        gameplay.tank.cooldown = r.json().get('tank_cooldown', 60)
+                        print(r.json())
+
+                    else:
+                        raise Exception('not get status')
+                except Exception:
+                    gameplay.tank.health = 10
+                    gameplay.score = 1
+                    gameplay.level = 1
+                    gameplay.tank.cooldown = 60
+
+                print('score', gameplay.score)
+
+                gameplay.sprites.add(gameplay.tank)
+                gameplay.joystick.motion = False
+                gameplay.joystick2.motion = False
+                gameplay.joystick.fingers = {}
+                gameplay.joystick2.fingers = {}
+                gameplay.joystick.position = gameplay.joystick.center
+                gameplay.joystick2.position = gameplay.joystick2.center
+                gameplay.username = pl[1]
+                gameplay.tank.health = 10
+                for e in gameplay.enemies:
+                    gameplay.sprites.remove(e)
+
+                for b in gameplay.enemies_bullets:
+                    gameplay.sprites.remove(b)
+
+                gameplay.enemies = []
+                gameplay.enemies_bullets = []
+
+                pl = gameplay.run()
             if pl == "quit":
                 break
 
