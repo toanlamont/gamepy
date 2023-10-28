@@ -13,7 +13,7 @@ package.domain = org.armoreddomination
 source.dir = .
 
 # (list) List of source files
-source.include_exts = py,png,jpg,kv,atlas,webp
+source.include_exts = py,png,jpg,kv,atlas,webp,mp3
 
 # (list) List of inclusions using pattern matching
 #source.include_patterns = assets/*,images/*.png

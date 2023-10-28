@@ -38,6 +38,8 @@ curr_dir = os.getcwd()
 screen_width = display_info.current_w
 screen_height = display_info.current_h
 win_size = (screen_width, screen_height)
+break_sound = pygame.mixer.Sound(f'{curr_dir}/image_game/break.mp3')
+shot_sound = pygame.mixer.Sound(f'{curr_dir}/image_game/shot.mp3')
 
 # screen = pygame.display.set_mode((win_size[0], win_size[1]))
 screen = pygame.display.set_mode(win_size, pygame.FULLSCREEN)
@@ -977,6 +979,7 @@ class GamePlay:
                     angle=self.tank.angle,
                     image_path=f"{self.curr_dir}/image_game/blue-bullet.png",
                 )
+                shot_sound.play()
                 self.bullets.append(bu)
                 self.sprites.add(bu)
                 self.tank.cooldown_bullet = self.tank.cooldown
@@ -1144,6 +1147,7 @@ class GamePlay:
 
                 if ene.health < 0:
                     self.sprites.add(Explosion(ene.rect.centerx, ene.rect.centery, ene.scale))
+                    break_sound.play()
 
                     self.enemies.remove(ene)
                     self.sprites.remove(ene)
